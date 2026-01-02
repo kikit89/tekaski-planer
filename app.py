@@ -198,28 +198,38 @@ with tab1:
             'accum_total': accum_total
         })
 
-    # --- RISANJE KOLEDARJA ---
+    # --- RISANJE ---
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
-    # Izračun višine
-    visible_bars_count = 0
+    # --- DINAMIČEN IZRAČUN VIŠINE ---
+    # Seštejemo koliko vrstic (enot) rabimo
+    needed_y_space = 0
     for g in st.session_state['goals_list']:
         if g.get('show_progress', True):
-            visible_bars_count += 1
-            if st.session_state['show_sub_month'] and g['type'] == 'Letni': visible_bars_count += 1
-            if st.session_state['show_sub_week']: visible_bars_count += 1
+            needed_y_space += 1.2 # Glavni trak + razmik
+            if st.session_state['show_sub_month'] and g['type'] == 'Letni': needed_y_space += 1.2
+            if st.session_state['show_sub_week']: needed_y_space += 1.2
+            needed_y_space += 0.3 # Dodaten razmik med skupinami
 
-    fig_height = 24 + (visible_bars_count * 2.0)
+    # Koledar zasede od y=0 do y=8 (cca 8 enot) + glava (2 enoti) = 10 enot
+    # Spodnji del se začne pri y=-2 in gre navzdol za `needed_y_space`
+    
+    lowest_y = -2.5 - needed_y_space
+    total_y_span = 8.0 - lowest_y # Od vrha (8) do dna
+    
+    # Faktor povečave (pixels per unit)
+    fig_height = total_y_span * 1.8 
+
     fig, ax = plt.subplots(figsize=(12, fig_height))
-    # RAZŠIRJEN KOLEDAR: xlim zmanjšan na 7 (brez tedenske vsote)
-    ax.set_xlim(0, 7); ax.set_ylim(-2 - (visible_bars_count * 2.0), 7.5); ax.axis('off')
+    ax.set_xlim(0, 7)
+    # Nastavimo spodnjo mejo točno tam, kjer se končajo podatki
+    ax.set_ylim(lowest_y, 8.0) 
+    ax.axis('off')
 
     SLO_MONTHS = {1:"JANUAR", 2:"FEBRUAR", 3:"MAREC", 4:"APRIL", 5:"MAJ", 6:"JUNIJ", 7:"JULIJ", 8:"AVGUST", 9:"SEPTEMBER", 10:"OKTOBER", 11:"NOVEMBER", 12:"DECEMBER"}
     month_name = SLO_MONTHS.get(current_month, "")
-    # Naslov na sredini 3.5
     ax.text(3.5, 7.2, f'{month_name} {current_year}', fontsize=30, fontweight='bold', ha='center', color=C_TEXT)
     
-    # Legenda (centrirana na 3.5)
     active_len = len(active_goals_cal)
     leg_y = 6.7
     if active_len > 0:
@@ -232,7 +242,7 @@ with tab1:
     ax.plot([0, 7], [6.4, 6.4], color='#bdc3c7', lw=2)
 
     cal = calendar.monthcalendar(current_year, current_month)
-    days_of_week = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned'] # Brez Vsote
+    days_of_week = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned']
     for i, dname in enumerate(days_of_week):
         ax.text(i + 0.5, 6.1, dname, ha='center', va='center', fontsize=16, fontweight='bold', color='#34495e')
 
@@ -242,15 +252,12 @@ with tab1:
         w_sum_dist = 0; w_sum_elev = 0
         for day_idx, day in enumerate(week):
             x = day_idx; y = 5 - week_idx
-            # Kvadrat
             rect = patches.Rectangle((x, y), 1, 1, fill=True, facecolor='white', edgecolor='#ecf0f1', linewidth=2)
             ax.add_patch(rect)
             if day == 0: continue
             
-            # Datum
             ax.text(x + 0.05, y + 0.85, str(day), fontsize=16, fontweight='bold', color='#7f8c8d')
             
-            # --- VERTIKALNI KROGCI ---
             if active_len > 0:
                 spacing = 0.75 / max(active_len, 1)
                 daily_vals = data.get(day, {'run':0, 'elev':0, 'is_today':False})
@@ -299,16 +306,10 @@ with tab1:
                         ax.add_patch(patches.Circle((x+0.15, dot_y), 0.04, color='#ecf0f1'))
                         ax.text(x+0.25, dot_y, f"{standard_avg:.1f}", va='center', fontsize=9, color='#95a5a6')
 
-        # TEDENSKE VSOTE so odstranjene iz desnega stolpca (ker ga ni)
-        # Lahko bi jih dodali nekam drugam, a uporabnik je želel brisanje stolpca.
-
-    # -----------------------------------------------------------
     # STOLPCI SPODAJ
-    # -----------------------------------------------------------
     ax.plot([0, 7], [-0.2, -0.2], color='#bdc3c7', lw=2) 
     ax.text(3.5, -0.8, 'NAPREDEK', fontsize=20, fontweight='bold', ha='center', color='#2c3e50')
     
-    # Širina stolpcev je zdaj 6 (od 0.5 do 6.5) za lep rob
     bar_x = 0.2; bar_width = 6.6; bar_height = 0.5; y_cursor = -2.5
     
     def draw_bar_status(y, val, goal, color, label, target_val=None, unit='km'):
