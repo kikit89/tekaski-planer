@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -10,6 +11,9 @@ from datetime import date, datetime
 # --- KONFIGURACIJA ---
 st.set_page_config(page_title="Tekaški Planer", layout="centered", page_icon="🏃‍♀️")
 FILE_NAME = 'teki_data.csv'
+
+# --- TVOJ KOLEDAR TEKEM ---
+RACE_CALENDAR_URL = "https://calendar.google.com/calendar/u/0/embed?color=%2342d692&src=ebc83d7c094e5c61db2b0682a4da13734af4f2f381bafec7ccb37df56bdb1c92@group.calendar.google.com"
 
 # --- PODATKI ---
 def load_data():
@@ -46,12 +50,21 @@ def init_settings():
 
 # --- APLIKACIJA ---
 init_settings()
-# st.title("🏃‍♀️ Moj Planer") # Naslov odstranjen
 
-tab1, tab2, tab3 = st.tabs(["📊 Koledar", "➕ Vnos", "⚙️ Nastavitve"])
+tab1, tab2, tab_race, tab3 = st.tabs(["📊 Koledar", "➕ Vnos", "🏆 Tekme", "⚙️ Nastavitve"])
 
 # ==============================================================================
-# ZAVIHEK 3: NASTAVITVE
+# ZAVIHEK: TEKME
+# ==============================================================================
+with tab_race:
+    st.header("🏆 Koledar Tekem")
+    try:
+        components.iframe(RACE_CALENDAR_URL, height=600, scrolling=True)
+    except Exception as e:
+        st.error("Napaka pri nalaganju koledarja.")
+
+# ==============================================================================
+# ZAVIHEK: NASTAVITVE
 # ==============================================================================
 with tab3:
     st.header("📋 Urejanje")
@@ -108,7 +121,7 @@ with tab3:
             st.rerun()
 
 # ==============================================================================
-# ZAVIHEK 2: VNOS
+# ZAVIHEK: VNOS
 # ==============================================================================
 with tab2:
     st.header("Nov vnos")
@@ -132,7 +145,7 @@ with tab2:
             save_data(df)
 
 # ==============================================================================
-# ZAVIHEK 1: VIZUALIZACIJA
+# ZAVIHEK: VIZUALIZACIJA (KOLEDAR + ANALIZA)
 # ==============================================================================
 with tab1:
     df = load_data()
@@ -155,9 +168,8 @@ with tab1:
     days_in_month = calendar.monthrange(current_year, current_month)[1]
     
     current_week_num = today.isocalendar()[1]
-    current_weekday_iso = today.isocalendar()[2] # 1=Pon
+    current_weekday_iso = today.isocalendar()[2] 
     
-    # Aktivni na koledarju
     active_goals_cal = [g for g in st.session_state['goals_list'] if g.get('active', True)]
     
     # --- PRED-IZRAČUN ---
@@ -187,7 +199,7 @@ with tab1:
             'accum_total': accum_total
         })
 
-    # --- RISANJE KOLEDARJA ---
+    # --- RISANJE ---
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
     visible_bars_count = 0
@@ -205,7 +217,6 @@ with tab1:
     month_name = SLO_MONTHS.get(current_month, "")
     ax.text(4, 7.2, f'{month_name} {current_year}', fontsize=30, fontweight='bold', ha='center', color=C_TEXT)
     
-    # Legenda
     active_len = len(active_goals_cal)
     leg_y = 6.7
     if active_len > 0:
@@ -287,9 +298,7 @@ with tab1:
         if w_sum_elev > 0:
             ax.text(7.5, 5 - week_idx + 0.3, f"{int(w_sum_elev)} m", ha='center', va='center', fontsize=11, fontweight='bold', color='#8e44ad')
 
-    # -----------------------------------------------------------
-    # STOLPCI SPODAJ
-    # -----------------------------------------------------------
+    # STOLPCI
     ax.plot([0, 8], [-0.2, -0.2], color='#bdc3c7', lw=2) 
     ax.text(4, -0.8, 'NAPREDEK', fontsize=20, fontweight='bold', ha='center', color='#2c3e50')
     
@@ -341,23 +350,20 @@ with tab1:
             draw_bar_status(y_cursor, month_accum, month_goal, meta['color'], f"{meta['name']} (Ta mesec)", target_val=month_target, unit=meta['unit'])
             y_cursor -= 1.8
 
-        # Teden (S POPRAVKOM ZA 1. TEDEN - VREDNOST NA DESNI)
+        # Teden (FIX 1. TEDEN)
         if st.session_state['show_sub_week']:
-            # Privzeti cilj: polnih 7 dni
             week_goal_display = gd['daily_avg'] * 7
             
-            # --- POPRAVEK: Če je 1. teden, je "Cilj" (na desni) manjši! ---
+            # --- POPRAVEK: 1. teden ---
             if current_week_num == 1:
                 jan1_weekday = date(current_year, 1, 1).isocalendar()[2]
                 active_days_total = 7 - jan1_weekday + 1
                 week_goal_display = gd['daily_avg'] * active_days_total
                 
-            # Izračun opravljenega
             df['week_num'] = df['dt'].dt.isocalendar().week
             unit_key = 'elev' if meta['unit']=='m' else 'run'
             week_accum = df[(df['dt'].dt.year == current_year) & (df['week_num'] == current_week_num)][unit_key].sum()
             
-            # Izračun "Target do danes" (črtica)
             if current_week_num == 1:
                 jan1_weekday = date(current_year, 1, 1).isocalendar()[2]
                 active_days_so_far = current_weekday_iso - jan1_weekday + 1
