@@ -198,7 +198,7 @@ with tab1:
             'accum_total': accum_total
         })
 
-    # --- RISANJE ---
+    # --- RISANJE KOLEDARJA ---
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
     # Izračun višine
@@ -209,28 +209,30 @@ with tab1:
             if st.session_state['show_sub_month'] and g['type'] == 'Letni': visible_bars_count += 1
             if st.session_state['show_sub_week']: visible_bars_count += 1
 
-    # Malo manjši faktor za višino, ker smo zmanjšali debelino trakov
-    fig_height = 18 + (visible_bars_count * 1.2)
+    fig_height = 24 + (visible_bars_count * 2.0)
     fig, ax = plt.subplots(figsize=(12, fig_height))
-    ax.set_xlim(0, 8); ax.set_ylim(-2 - (visible_bars_count * 1.2), 7.5); ax.axis('off')
+    # RAZŠIRJEN KOLEDAR: xlim zmanjšan na 7 (brez tedenske vsote)
+    ax.set_xlim(0, 7); ax.set_ylim(-2 - (visible_bars_count * 2.0), 7.5); ax.axis('off')
 
     SLO_MONTHS = {1:"JANUAR", 2:"FEBRUAR", 3:"MAREC", 4:"APRIL", 5:"MAJ", 6:"JUNIJ", 7:"JULIJ", 8:"AVGUST", 9:"SEPTEMBER", 10:"OKTOBER", 11:"NOVEMBER", 12:"DECEMBER"}
     month_name = SLO_MONTHS.get(current_month, "")
-    ax.text(4, 7.2, f'{month_name} {current_year}', fontsize=30, fontweight='bold', ha='center', color=C_TEXT)
+    # Naslov na sredini 3.5
+    ax.text(3.5, 7.2, f'{month_name} {current_year}', fontsize=30, fontweight='bold', ha='center', color=C_TEXT)
     
+    # Legenda (centrirana na 3.5)
     active_len = len(active_goals_cal)
     leg_y = 6.7
     if active_len > 0:
-        step = 8 / (active_len + 1)
+        step = 7 / (active_len + 1)
         for i, g in enumerate(active_goals_cal):
             px = step * (i + 1)
             ax.add_patch(patches.Circle((px, leg_y), 0.15, color=g['color']))
             ax.text(px + 0.3, leg_y, g['name'], va='center', fontsize=14)
 
-    ax.plot([0, 8], [6.4, 6.4], color='#bdc3c7', lw=2)
+    ax.plot([0, 7], [6.4, 6.4], color='#bdc3c7', lw=2)
 
     cal = calendar.monthcalendar(current_year, current_month)
-    days_of_week = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned', 'Vsota']
+    days_of_week = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned'] # Brez Vsote
     for i, dname in enumerate(days_of_week):
         ax.text(i + 0.5, 6.1, dname, ha='center', va='center', fontsize=16, fontweight='bold', color='#34495e')
 
@@ -240,12 +242,15 @@ with tab1:
         w_sum_dist = 0; w_sum_elev = 0
         for day_idx, day in enumerate(week):
             x = day_idx; y = 5 - week_idx
+            # Kvadrat
             rect = patches.Rectangle((x, y), 1, 1, fill=True, facecolor='white', edgecolor='#ecf0f1', linewidth=2)
             ax.add_patch(rect)
             if day == 0: continue
             
+            # Datum
             ax.text(x + 0.05, y + 0.85, str(day), fontsize=16, fontweight='bold', color='#7f8c8d')
             
+            # --- VERTIKALNI KROGCI ---
             if active_len > 0:
                 spacing = 0.75 / max(active_len, 1)
                 daily_vals = data.get(day, {'run':0, 'elev':0, 'is_today':False})
@@ -294,17 +299,17 @@ with tab1:
                         ax.add_patch(patches.Circle((x+0.15, dot_y), 0.04, color='#ecf0f1'))
                         ax.text(x+0.25, dot_y, f"{standard_avg:.1f}", va='center', fontsize=9, color='#95a5a6')
 
-        if w_sum_dist > 0:
-            ax.text(7.5, 5 - week_idx + 0.6, f"{w_sum_dist:.1f} km", ha='center', va='center', fontsize=11, fontweight='bold', color='#555')
-        if w_sum_elev > 0:
-            ax.text(7.5, 5 - week_idx + 0.3, f"{int(w_sum_elev)} m", ha='center', va='center', fontsize=11, fontweight='bold', color='#8e44ad')
+        # TEDENSKE VSOTE so odstranjene iz desnega stolpca (ker ga ni)
+        # Lahko bi jih dodali nekam drugam, a uporabnik je želel brisanje stolpca.
 
-    # STOLPCI
-    ax.plot([0, 8], [-0.2, -0.2], color='#bdc3c7', lw=2) 
-    ax.text(4, -0.8, 'NAPREDEK', fontsize=20, fontweight='bold', ha='center', color='#2c3e50')
+    # -----------------------------------------------------------
+    # STOLPCI SPODAJ
+    # -----------------------------------------------------------
+    ax.plot([0, 7], [-0.2, -0.2], color='#bdc3c7', lw=2) 
+    ax.text(3.5, -0.8, 'NAPREDEK', fontsize=20, fontweight='bold', ha='center', color='#2c3e50')
     
-    # TANJŠI STOLPCI
-    bar_x = 0.5; bar_width = 7; bar_height = 0.5; y_cursor = -2.5
+    # Širina stolpcev je zdaj 6 (od 0.5 do 6.5) za lep rob
+    bar_x = 0.2; bar_width = 6.6; bar_height = 0.5; y_cursor = -2.5
     
     def draw_bar_status(y, val, goal, color, label, target_val=None, unit='km'):
         ax.add_patch(patches.Rectangle((bar_x, y), bar_width, bar_height, facecolor=C_BG, edgecolor='none'))
@@ -342,7 +347,7 @@ with tab1:
         
         # Glavni
         draw_bar_status(y_cursor, accum, meta['goal'], meta['color'], f"{meta['name']}", target_val=main_target, unit=meta['unit'])
-        y_cursor -= 1.2 # Manjši razmak
+        y_cursor -= 1.2
         
         # Mesec
         if st.session_state['show_sub_month'] and meta['type'] == 'Letni':
@@ -352,12 +357,10 @@ with tab1:
             draw_bar_status(y_cursor, month_accum, month_goal, meta['color'], f"{meta['name']} (Ta mesec)", target_val=month_target, unit=meta['unit'])
             y_cursor -= 1.2
 
-        # Teden
+        # Teden (FIX 1. TEDEN)
         if st.session_state['show_sub_week']:
-            # Privzeti cilj: 7 dni
             week_goal_display = gd['daily_avg'] * 7
             
-            # --- POPRAVEK: 1. teden ---
             if current_week_num == 1:
                 jan1_weekday = date(current_year, 1, 1).isocalendar()[2]
                 active_days_total = 7 - jan1_weekday + 1
@@ -378,6 +381,6 @@ with tab1:
             draw_bar_status(y_cursor, week_accum, week_goal_display, meta['color'], f"{meta['name']} (Ta teden)", target_val=week_target_marker, unit=meta['unit'])
             y_cursor -= 1.2
             
-        y_cursor -= 0.3 # Razmak med skupinami
+        y_cursor -= 0.3
 
     st.pyplot(fig)
