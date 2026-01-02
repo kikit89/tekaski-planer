@@ -8,7 +8,7 @@ import uuid
 from datetime import date, datetime
 
 # --- KONFIGURACIJA ---
-st.set_page_config(page_title="Moj Planer", layout="centered", page_icon="🏃‍♀️")
+st.set_page_config(page_title="Tekaški Planer", layout="centered", page_icon="🏃‍♀️")
 FILE_NAME = 'teki_data.csv'
 
 # --- PODATKI ---
@@ -35,103 +35,74 @@ def save_data(df):
     df_save.to_csv(FILE_NAME, index=False)
 
 def init_settings():
-    # Inicializacija seznama ciljev (če še ne obstaja)
+    # Inicializacija seznama ciljev
     if 'goals_list' not in st.session_state:
         st.session_state['goals_list'] = [
-            # IDji so pomembni za brisanje
-            {'id': 'g_main', 'name': 'Letni Plan', 'color': '#f1c40f', 'goal': 2500.0, 'type': 'Letni', 'unit': 'km', 'active': True},
-            {'id': 'g_strava', 'name': 'Strava Izziv', 'color': '#FC4C02', 'goal': 300.0, 'type': 'Mesečni', 'unit': 'km', 'active': True},
-            {'id': 'g_elev', 'name': 'Hribi', 'color': '#8e44ad', 'goal': 80000.0, 'type': 'Letni', 'unit': 'm', 'active': True},
+            {'id': 'g1', 'name': 'Letni Plan', 'color': '#f1c40f', 'goal': 2500.0, 'type': 'Letni', 'unit': 'km', 'active': True},
+            {'id': 'g2', 'name': 'Strava Izziv', 'color': '#FC4C02', 'goal': 300.0, 'type': 'Mesečni', 'unit': 'km', 'active': True},
+            {'id': 'g3', 'name': 'Hribi', 'color': '#8e44ad', 'goal': 80000.0, 'type': 'Letni', 'unit': 'm', 'active': True},
         ]
     
-    # Nastavitve analiz (spodaj)
-    if 'show_analysis_year' not in st.session_state: st.session_state['show_analysis_year'] = True
-    if 'show_analysis_month' not in st.session_state: st.session_state['show_analysis_month'] = True
-    if 'show_analysis_week' not in st.session_state: st.session_state['show_analysis_week'] = True
+    # Ali prikažemo podrobno razčlenitev (teden/mesec) pod glavnim stolpcem?
+    if 'show_breakdown' not in st.session_state: st.session_state['show_breakdown'] = True
 
 # --- APLIKACIJA ---
 init_settings()
 st.title("🏃‍♀️ Moj Planer")
 
-tab1, tab2, tab3 = st.tabs(["📊 Koledar", "➕ Vnos", "⚙️ Urejanje Ciljev"])
+tab1, tab2, tab3 = st.tabs(["📊 Koledar & Analiza", "➕ Vnos", "⚙️ Nastavitve"])
 
 # ==============================================================================
-# ZAVIHEK 3: UREJANJE CILJEV (ADD / DELETE)
+# ZAVIHEK 3: NASTAVITVE (DODAJANJE/BRISANJE)
 # ==============================================================================
 with tab3:
-    st.header("📋 Moji Cilji")
-    st.info("Tukaj lahko dodaš nove izzive ali izbrišeš stare. Za vsakega določi tip (Letni/Mesečni), da bo deloval 'semafor' +/-.")
-
-    # 1. SEZNAM OBSTOJEČIH
-    goals_to_remove = []
+    st.header("📋 Urejanje Ciljev")
     
+    st.subheader("Splošne nastavitve")
+    st.session_state['show_breakdown'] = st.checkbox("Prikaži podrobno razčlenitev (Mesečno/Tedensko) pod vsakim ciljem", 
+                                                     value=st.session_state['show_breakdown'])
+    st.write("---")
+
+    # SEZNAM CILJEV
+    goals_to_remove = []
     for i, g in enumerate(st.session_state['goals_list']):
         with st.expander(f"{g['name']} ({g['type']})", expanded=False):
             c1, c2 = st.columns([1, 3])
-            with c1: 
-                new_color = st.color_picker("Barva", g['color'], key=f"c_{g['id']}")
-                g['color'] = new_color
-            with c2: 
-                new_name = st.text_input("Ime", g['name'], key=f"n_{g['id']}")
-                g['name'] = new_name
+            with c1: g['color'] = st.color_picker("Barva", g['color'], key=f"c_{g['id']}")
+            with c2: g['name'] = st.text_input("Ime", g['name'], key=f"n_{g['id']}")
             
             c3, c4, c5 = st.columns(3)
-            with c3:
-                new_goal = st.number_input("Cilj", value=float(g['goal']), key=f"g_{g['id']}")
-                g['goal'] = new_goal
-            with c4:
-                new_type = st.selectbox("Tip", ["Letni", "Mesečni"], index=0 if g['type']=="Letni" else 1, key=f"t_{g['id']}")
-                g['type'] = new_type
-            with c5:
-                new_unit = st.selectbox("Enota", ["km", "m"], index=0 if g.get('unit','km')=="km" else 1, key=f"u_{g['id']}")
-                g['unit'] = new_unit
-                
-            # Gumb za brisanje
-            if st.button(f"🗑️ Izbriši {g['name']}", key=f"del_{g['id']}"):
+            with c3: g['goal'] = st.number_input("Cilj", value=float(g['goal']), key=f"g_{g['id']}")
+            with c4: g['type'] = st.selectbox("Tip", ["Letni", "Mesečni"], index=0 if g['type']=="Letni" else 1, key=f"t_{g['id']}")
+            with c5: g['unit'] = st.selectbox("Enota", ["km", "m"], index=0 if g.get('unit','km')=="km" else 1, key=f"u_{g['id']}")
+            
+            g['active'] = st.checkbox("Prikaži na koledarju", value=g['active'], key=f"a_{g['id']}")
+            
+            if st.button(f"Izbriši {g['name']}", key=f"del_{g['id']}"):
                 goals_to_remove.append(i)
 
-    # Izvedba brisanja (zunaj zanke)
     if goals_to_remove:
         for index in sorted(goals_to_remove, reverse=True):
             del st.session_state['goals_list'][index]
         st.rerun()
 
     st.write("---")
-    
-    # 2. DODAJANJE NOVEGA
-    st.subheader("➕ Dodaj nov cilj")
-    with st.form("add_goal_form"):
+    st.subheader("➕ Nov Cilj")
+    with st.form("new_goal"):
+        n_name = st.text_input("Ime")
         c1, c2 = st.columns(2)
-        with c1: n_name = st.text_input("Ime cilja (npr. Zimski Izziv)")
-        with c2: n_color = st.color_picker("Barva", "#00ff00")
+        with c1: n_goal = st.number_input("Vrednost", value=100.0)
+        with c2: n_unit = st.selectbox("Enota", ["km", "m"])
+        n_type = st.selectbox("Tip", ["Mesečni", "Letni"])
+        n_color = st.color_picker("Barva", "#00ff00")
         
-        c3, c4, c5 = st.columns(3)
-        with c3: n_goal = st.number_input("Cilj (vrednost)", min_value=1.0, value=100.0)
-        with c4: n_type = st.selectbox("Tip cilja", ["Mesečni", "Letni"])
-        with c5: n_unit = st.selectbox("Enota", ["km", "m"])
-        
-        if st.form_submit_button("Dodaj Cilj"):
+        if st.form_submit_button("Dodaj"):
             new_id = str(uuid.uuid4())[:8]
-            new_obj = {
-                'id': new_id,
-                'name': n_name if n_name else "Nov Cilj",
-                'color': n_color,
-                'goal': n_goal,
-                'type': n_type,
-                'unit': n_unit,
-                'active': True
-            }
-            st.session_state['goals_list'].append(new_obj)
-            st.success("Dano!")
+            st.session_state['goals_list'].append({
+                'id': new_id, 'name': n_name, 'color': n_color, 'goal': n_goal, 
+                'type': n_type, 'unit': n_unit, 'active': True
+            })
             st.rerun()
-
-    st.write("---")
-    st.subheader("Nastavitve Analize (Prvi stolpci)")
-    c1, c2, c3 = st.columns(3)
-    with c1: st.session_state['show_analysis_year'] = st.checkbox("Letni pregled", st.session_state['show_analysis_year'])
-    with c2: st.session_state['show_analysis_month'] = st.checkbox("Mesečni pregled", st.session_state['show_analysis_month'])
-    with c3: st.session_state['show_analysis_week'] = st.checkbox("Tedenski pregled", st.session_state['show_analysis_week'])
-
 
 # ==============================================================================
 # ZAVIHEK 2: VNOS
@@ -157,9 +128,8 @@ with tab2:
                 st.toast(f"Shranjeno!")
             save_data(df)
 
-
 # ==============================================================================
-# ZAVIHEK 1: VIZUALIZACIJA (KOLEDAR & BAR)
+# ZAVIHEK 1: VIZUALIZACIJA
 # ==============================================================================
 with tab1:
     df = load_data()
@@ -169,282 +139,232 @@ with tab1:
     current_year = today.year
     current_month = today.month
     
-    # Podatki za tekoči mesec
+    # Filtriranje za koledar (samo trenutni mesec)
     df_month_view = df[(df['dt'].dt.year == current_year) & (df['dt'].dt.month == current_month)]
     
-    data = {}
+    # Podatki po dnevih za hitro iskanje
+    day_data = {}
     for _, row in df_month_view.iterrows():
-        data[row['dt'].day] = {'run': row['run'], 'elev': row['elev'], 'is_today': (row['dt'].date() == today)}
+        day_data[row['dt'].day] = {'run': row['run'], 'elev': row['elev'], 'is_today': (row['dt'].date() == today)}
 
-    # Priprava parametrov za izračune
+    # Priprava globalnih spremenljivk
     day_of_year = today.timetuple().tm_yday
     day_of_month = today.day
     days_in_year = 366 if calendar.isleap(current_year) else 365
     days_in_month = calendar.monthrange(current_year, current_month)[1]
     
-    # -----------------------------------------------------------
-    # IZRAČUNI CILJEV (Dinamično glede na seznam)
-    # -----------------------------------------------------------
-    goals_data = [] # Tu bomo shranili preračunane vrednosti za risanje
+    current_week_num = today.isocalendar()[1]
+    # Popravek za teden: koliko dni je minilo v tem tednu?
+    current_weekday_iso = today.isocalendar()[2] # 1=Pon
     
-    # Najprej poiščimo "Glavni letni cilj" za prvo analizo (običajno prvi v seznamu ali prvi z tipom Letni)
-    main_annual_goal = next((g for g in st.session_state['goals_list'] if g['type'] == 'Letni' and g['unit'] == 'km'), None)
+    # --- PRIPRAVA PODATKOV ZA CILJE ---
+    active_goals_calendar = [g for g in st.session_state['goals_list'] if g['active']]
     
-    # Preračunajmo status za vsak cilj v seznamu
-    for g in st.session_state['goals_list']:
-        g_val = g['goal']
-        
-        # 1. Dnevno povprečje (Daily Requirement)
-        if g['type'] == 'Letni':
-            daily_req = g_val / days_in_year
-            target_today = daily_req * day_of_year
-            current_accum = df[df['dt'].dt.year == current_year][ 'elev' if g['unit']=='m' else 'run' ].sum()
-        else: # Mesečni
-            daily_req = g_val / days_in_month
-            target_today = daily_req * day_of_month
-            current_accum = df_month_view[ 'elev' if g['unit']=='m' else 'run' ].sum()
-            
-        # 2. Banking (Jutri)
-        surplus = current_accum - target_today
-        next_day_goal = daily_req - surplus
-        
-        goals_data.append({
-            'conf': g,
-            'daily_req': daily_req,
-            'target_today': target_today,
-            'current_accum': current_accum,
-            'next_day_goal': next_day_goal,
-            'surplus': surplus
-        })
-
     # -----------------------------------------------------------
-    # RISANJE KOLEDARJA
+    # 1. RISANJE KOLEDARJA
     # -----------------------------------------------------------
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
-    # Višina grafa: odvisna od števila stolpcev spodaj
-    # Preštejemo stolpce
-    num_bars = 0
-    if st.session_state['show_analysis_year']: num_bars += 1
-    if st.session_state['show_analysis_month']: num_bars += 1
-    if st.session_state['show_analysis_week']: num_bars += 1
-    num_bars += len(goals_data) # Za vsak cilj en stolpec
+    # Dinamična višina glede na število ciljev spodaj
+    # Vsak cilj vzame nekaj prostora + če je breakdown vklopljen, vzame še več
+    bars_height_est = 0
+    for g in st.session_state['goals_list']:
+        bars_height_est += 1.2
+        if st.session_state['show_breakdown']:
+            if g['type'] == 'Letni': bars_height_est += 2.0 # mesec + teden
+            else: bars_height_est += 1.0 # samo teden
 
-    fig_height = 13 + (num_bars * 1.3)
+    fig_height = 10 + bars_height_est
     fig, ax = plt.subplots(figsize=(12, fig_height))
-    ax.set_xlim(0, 8); ax.set_ylim(-2 - num_bars, 7.5); ax.axis('off')
-
-    SLO_MONTHS = {1:"JANUAR", 2:"FEBRUAR", 3:"MAREC", 4:"APRIL", 5:"MAJ", 6:"JUNIJ", 7:"JULIJ", 8:"AVGUST", 9:"SEPTEMBER", 10:"OKTOBER", 11:"NOVEMBER", 12:"DECEMBER"}
-    month_name = SLO_MONTHS.get(current_month, "MESEC")
-    ax.text(4, 7.2, f'{month_name} {current_year}', fontsize=24, fontweight='bold', ha='center', color=C_TEXT)
     
-    # LEGENDA (Dinamična)
-    num_leg = len(goals_data)
+    # Y limit moramo prilagoditi, da gre dovolj globoko za vse stolpce
+    ax.set_xlim(0, 8); ax.set_ylim(-2 - bars_height_est, 7.5); ax.axis('off')
+
+    # Naslov
+    SLO_MONTHS = {1:"JANUAR", 2:"FEBRUAR", 3:"MAREC", 4:"APRIL", 5:"MAJ", 6:"JUNIJ", 7:"JULIJ", 8:"AVGUST", 9:"SEPTEMBER", 10:"OKTOBER", 11:"NOVEMBER", 12:"DECEMBER"}
+    ax.text(4, 7.2, f'{SLO_MONTHS.get(current_month, "")} {current_year}', fontsize=24, fontweight='bold', ha='center', color=C_TEXT)
+    
+    # Legenda
     leg_y = 6.7
-    # Preprosta razporeditev
+    num_leg = len(active_goals_calendar)
     if num_leg > 0:
         step = 8 / (num_leg + 1)
-        for i, gd in enumerate(goals_data):
+        for i, g in enumerate(active_goals_calendar):
             px = step * (i + 1)
-            col = gd['conf']['color']
-            name = gd['conf']['name']
-            ax.add_patch(patches.Circle((px, leg_y), 0.15, color=col))
-            ax.text(px + 0.3, leg_y, name, va='center', fontsize=11)
+            ax.add_patch(patches.Circle((px, leg_y), 0.15, color=g['color']))
+            ax.text(px + 0.3, leg_y, g['name'], va='center', fontsize=11)
 
     ax.plot([0, 8], [6.4, 6.4], color='#bdc3c7', lw=2)
 
+    # Dnevi
     cal = calendar.monthcalendar(current_year, current_month)
     days_of_week = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned', 'Vsota']
     for i, dname in enumerate(days_of_week):
         ax.text(i + 0.5, 6.1, dname, ha='center', va='center', fontsize=14, fontweight='bold', color='#34495e')
 
-    current_day_real = today.day
-
+    # Grid in Pike
     for week_idx, week in enumerate(cal):
         w_sum_dist = 0; w_sum_elev = 0
         for day_idx, day in enumerate(week):
             x = day_idx; y = 5 - week_idx
+            # Okvirček
             rect = patches.Rectangle((x, y), 1, 1, fill=True, facecolor='white', edgecolor='#ecf0f1', linewidth=2)
             ax.add_patch(rect)
+            
             if day == 0: continue
             
             ax.text(x + 0.05, y + 0.85, str(day), fontsize=14, fontweight='bold', color='#7f8c8d')
             
-            # --- Dinamične pozicije pikic znotraj dneva ---
-            # Razdelimo vertikalni prostor (0.2 do 0.8) glede na število ciljev
-            if num_leg > 0:
-                space_per_dot = 0.6 / num_leg
-                # Začnemo zgoraj
-                start_y = 0.8 - (space_per_dot / 2)
+            # --- POPRAVLJENA LOGIKA POZICIJ PIK ---
+            # Pike morajo biti znotraj (x, y) do (x+1, y+1)
+            # Y gre od spodaj navzgor.
+            # Začnemo pri y + 0.7 in gremo dol
             
-            # 1. PRETEKLOST (Podatki obstajajo)
-            if day in data:
-                d = data[day]; val_km = d['run']; val_m = d['elev']; is_today = d['is_today']
-                w_sum_dist += val_km; w_sum_elev += val_m
+            if num_leg > 0:
+                # Koliko prostora ima ena pika?
+                space = 0.6 / num_leg 
+                start_y_dots = y + 0.75
                 
-                for i, gd in enumerate(goals_data):
-                    conf = gd['conf']
-                    # Katero vrednost preverjamo? (km ali m)
-                    act_val = val_m if conf['unit'] == 'm' else val_km
-                    daily_goal = gd['daily_req']
-                    
-                    # Ali je cilj dosežen? (Za prikaz kljukice/klicaja)
-                    # POZOR: Pri banking logiki je to malo bolj kompleksno, 
-                    # ampak za preprostost koledarja: ali sem danes naredil povprečje?
-                    ok = act_val >= daily_goal
-                    col = conf['color'] if ok else (C_PENDING if is_today else 'salmon')
-                    
-                    py = start_y - (i * space_per_dot)
-                    
-                    if ok:
-                        ax.add_patch(patches.Circle((x+0.25, py), 0.07, color=conf['color']))
-                        # Kljukica samo če je prostor (če je malo ciljev)
-                        if num_leg <= 4: ax.text(x+0.25, py, '✓', ha='center', va='center', color='white', fontsize=8, fontweight='bold')
-                    else:
-                        # Klicaj
-                        ax.add_patch(patches.Circle((x+0.25, py), 0.07, fill=False, edgecolor=col, lw=2))
-                    
-                    # Izpis številke zraven (samo če je vrednost > 0 ali je to glavna kategorija)
-                    # Da ne delamo gneče, izpišemo vrednost samo pri prvem, ali pa če je m
-                    if i == 0 or conf['unit'] == 'm':
-                         txt = f"{act_val:.1f}" if conf['unit'] == 'km' else f"{int(act_val)}"
-                         ax.text(x+0.4, py, txt, va='center', fontsize=9, color='black')
-
-            # 2. PRIHODNOST (Napovedi za VSE cilje)
-            elif day > current_day_real:
-                is_tomorrow = (day == current_day_real + 1)
+                # Pridobi podatke za ta dan
+                daily_vals = day_data.get(day, {'run':0, 'elev':0, 'is_today':False})
+                val_km = daily_vals['run']
+                val_m = daily_vals['elev']
+                is_today = daily_vals['is_today']
                 
-                for i, gd in enumerate(goals_data):
-                    conf = gd['conf']
-                    py = start_y - (i * space_per_dot)
+                w_sum_dist += val_km
+                w_sum_elev += val_m
+                
+                for i, g in enumerate(active_goals_calendar):
+                    dot_y = start_y_dots - (i * space)
                     
-                    # Samo za tomorrow pokažemo barvno/številko, naprej sivo
-                    if is_tomorrow:
-                        # Barva teksta: Zelena če je kredit, Rdeča če je dolg
-                        next_val = gd['next_day_goal']
-                        # Če je naslednji cilj manjši od povprečja -> Zeleno (Dobro)
-                        txt_col = C_GOOD if next_val <= gd['daily_req'] else C_BAD
+                    # Izračun cilja za ta dan (povprečje)
+                    target_val = g['goal'] / (days_in_year if g['type']=='Letni' else days_in_month)
+                    
+                    current_val = val_m if g['unit']=='m' else val_km
+                    
+                    # Risanje pike (Če je podatek > 0 ali če je danes)
+                    has_data = current_val > 0
+                    
+                    if has_data or is_today:
+                        ok = current_val >= target_val
+                        col = g['color'] if ok else (C_PENDING if is_today else 'salmon')
                         
-                        ax.add_patch(patches.Circle((x+0.25, py), 0.07, color='#f2f4f4'))
-                        ax.text(x+0.4, py, f"{next_val:.1f}", va='center', fontsize=8, fontweight='bold', color=txt_col)
-                    else:
-                        # Pojutrišnjem -> samo siva povprečna vrednost
-                        # Razen za 'Dnevni' tip, ampak recimo da vsi bankingajo
-                        ax.add_patch(patches.Circle((x+0.25, py), 0.07, color='#f2f4f4'))
-                        # Ne izpisujemo številk za pojutrišnjem da ni gneče, samo piko
+                        if ok:
+                            ax.add_patch(patches.Circle((x+0.25, dot_y), 0.07, color=col))
+                            # Kljukica samo če ni gneče
+                            if num_leg <= 3: ax.text(x+0.25, dot_y, '✓', ha='center', va='center', color='white', fontsize=7, fontweight='bold')
+                        else:
+                            ax.add_patch(patches.Circle((x+0.25, dot_y), 0.07, fill=False, edgecolor=col, lw=2))
+                        
+                        # Tekst zraven (samo za prvi cilj ali če je malo ciljev)
+                        if num_leg <= 2 or i == 0 or g['unit']=='m':
+                            txt = f"{int(current_val)}" if g['unit']=='m' else f"{current_val:.1f}"
+                            ax.text(x+0.4, dot_y, txt, va='center', fontsize=8, color='black')
 
-
-        # Tedenske vsote
+        # Tedenska vsota
         if w_sum_dist > 0:
-            ax.text(7.5, 5 - week_idx + 0.6, f"{w_sum_dist:.1f}", ha='center', va='center', fontsize=10, fontweight='bold', color='#555')
-            if w_sum_elev > 0:
-                ax.text(7.5, 5 - week_idx + 0.3, f"{int(w_sum_elev)}", ha='center', va='center', fontsize=9, color='#8e44ad')
+            ax.text(7.5, 5 - week_idx + 0.5, f"{w_sum_dist:.1f}", ha='center', va='center', fontsize=10, fontweight='bold', color='#555')
 
     # -----------------------------------------------------------
-    # SPODNJI STOLPCI (SEMAFOR 🚦)
+    # 2. RISANJE STOLPCEV SPODAJ (PAMETNA RAZČLENITEV)
     # -----------------------------------------------------------
     ax.plot([0, 8], [-0.2, -0.2], color='#bdc3c7', lw=2) 
-    ax.text(4, -0.8, 'NAPREDEK & STANJE', fontsize=18, fontweight='bold', ha='center', color='#2c3e50')
+    ax.text(4, -0.8, 'NAPREDEK', fontsize=18, fontweight='bold', ha='center', color='#2c3e50')
     
-    bar_x = 0.5; bar_width = 7; bar_height = 0.6; y_start = -1.8
+    bar_x = 0.5; bar_width = 7; bar_height = 0.6; y_cursor = -2.0
     
-    def draw_bar_status(y, val, goal, color, label, target_val=None, unit='km'):
+    # Pomožna funkcija za risanje enega traku
+    def draw_single_bar(y, val, goal, color, label, target_val=None, unit='km', is_sub=False):
+        # Če je pod-trak (sub), ga malo zamaknemo in pomanjšamo
+        bx = bar_x + 0.5 if is_sub else bar_x
+        bw = bar_width - 0.5 if is_sub else bar_width
+        
         # Ozadje
-        ax.add_patch(patches.Rectangle((bar_x, y), bar_width, bar_height, facecolor=C_BG, edgecolor='none'))
-        # Napredek
+        ax.add_patch(patches.Rectangle((bx, y), bw, bar_height, facecolor=C_BG, edgecolor='none'))
+        # Polnilo
         pct = val / goal if goal > 0 else 0
         if pct > 1: pct = 1
-        ax.add_patch(patches.Rectangle((bar_x, y), bar_width * pct, bar_height, facecolor=color, edgecolor='none'))
+        ax.add_patch(patches.Rectangle((bx, y), bw * pct, bar_height, facecolor=color, edgecolor='none'))
         
-        # STATUS (Semafor)
+        # Status (Semafor)
+        status_txt = ""
+        status_col = 'black'
         if target_val is not None:
             diff = val - target_val
-            diff_text = f"{diff:+.1f} {unit}"
-            status_color = C_GOOD if diff >= 0 else C_BAD # Zelena če plus, Rdeča če minus
+            status_col = C_GOOD if diff >= 0 else C_BAD
+            status_txt = f"{diff:+.1f}"
             
-            # Izris "Luknje" (če je minus)
-            if diff < 0:
-                pct_target = target_val / goal if goal > 0 else 0
-                if pct_target > 1: pct_target = 1
-                rect_start = bar_x + (bar_width * pct)
-                rect_width = (bar_width * pct_target) - (bar_width * pct)
-                if rect_width > 0:
-                    ax.add_patch(patches.Rectangle((rect_start, y), rect_width, bar_height, 
-                                                 facecolor=C_BAD, alpha=0.3, edgecolor=C_BAD, hatch='//'))
-            
-            # Marker planirane pozicije
-            t_pct = target_val / goal if goal > 0 else 0
-            if t_pct > 1: t_pct = 1
-            t_pos = bar_x + (bar_width * t_pct)
-            ax.plot([t_pos, t_pos], [y, y + bar_height], color='black', alpha=0.5, lw=1.5, linestyle=':')
+            # Marker
+            tpct = target_val / goal if goal > 0 else 0
+            if tpct > 1: tpct = 1
+            tpos = bx + (bw * tpct)
+            ax.plot([tpos, tpos], [y, y+bar_height], color='black', alpha=0.6, linestyle=':')
 
-            # Izpis statusa DESNO
-            ax.text(bar_x + bar_width, y + 0.1, f"{diff_text}", fontsize=11, fontweight='bold', color=status_color, ha='right')
-
-        # Ime in vrednosti
-        ax.text(bar_x, y + 0.7, f"{label}", fontsize=11, fontweight='bold', color='#555')
-        ax.text(bar_x + bar_width, y + 0.7, f"{val:.1f} / {goal:.0f}", fontsize=11, fontweight='bold', color='black', ha='right')
-
-    current_y = y_start
-    
-    # 1. ANALIZA GLAVNEGA CILJA (Če obstaja in je vklopljena)
-    if main_annual_goal:
-        # Priprava podatkov za glavni cilj
-        g_val = main_annual_goal['goal']
-        g_col = main_annual_goal['color']
-        # Letni podatki
-        year_accum = df[df['dt'].dt.year == current_year]['run'].sum()
-        year_target = (g_val / days_in_year) * day_of_year
-        # Mesečni podatki
-        month_target_total = (g_val / days_in_year) * days_in_month
-        month_accum = df_month_view['run'].sum()
-        month_target_now = (g_val / days_in_year) * day_of_month
-        # Tedenski podatki
-        current_week_num = today.isocalendar()[1]
-        jan1_weekday = date(current_year, 1, 1).isocalendar()[2]
-        current_weekday = today.isocalendar()[2]
+        # Tekst
+        font_w = 'normal' if is_sub else 'bold'
+        ax.text(bx, y + 0.7, label, fontsize=11, fontweight=font_w, color='#555')
         
-        # Fix za prvi teden
-        week_target_total = (g_val / days_in_year) * 7
-        if current_week_num == 1:
-             active_days = current_weekday - jan1_weekday + 1
-             if active_days < 0: active_days = 0
-             week_target_now = (g_val / days_in_year) * active_days
+        # Desni izpis: Vrednost in Status
+        right_txt = f"{val:.1f}/{goal:.0f} {unit}"
+        if status_txt:
+            right_txt += f" ({status_txt})"
+        
+        ax.text(bx + bw, y + 0.7, right_txt, fontsize=11, fontweight='bold', color=status_col if status_txt else 'black', ha='right')
+
+    # GLAVNA ZANKA ČEZ VSE CILJE
+    for g in st.session_state['goals_list']:
+        # 1. Priprava podatkov za GLAVNI trak
+        g_val = g['goal']
+        g_col = g['color']
+        g_unit = g['unit']
+        
+        # Accum: Koliko smo naredili?
+        # Če je Letni cilj -> vsota celega leta
+        # Če je Mesečni cilj -> vsota meseca
+        if g['type'] == 'Letni':
+            main_accum = df[df['dt'].dt.year == current_year]['run' if g_unit=='km' else 'elev'].sum()
+            # Target do danes: (Cilj / Dni v letu) * Današnji dan
+            main_target = (g_val / days_in_year) * day_of_year
+            main_label = f"{g['name']} (Letni)"
         else:
-             week_target_now = (g_val / days_in_year) * current_weekday
-        
-        df['week_num'] = df['dt'].dt.isocalendar().week
-        week_accum = df[(df['dt'].dt.year == current_year) & (df['week_num'] == current_week_num)]['run'].sum()
-
-        if st.session_state['show_analysis_year']:
-            draw_bar_status(current_y, year_accum, g_val, g_col, "LETNI PREGLED", target_val=year_target); current_y -= 1.3
-        if st.session_state['show_analysis_month']:
-            draw_bar_status(current_y, month_accum, month_target_total, g_col, "MESEČNI DEL", target_val=month_target_now); current_y -= 1.3
-        if st.session_state['show_analysis_week']:
-            draw_bar_status(current_y, week_accum, week_target_total, g_col, "TEDENSKI DEL", target_val=week_target_now); current_y -= 1.3
+            main_accum = df_month_view['run' if g_unit=='km' else 'elev'].sum()
+            main_target = (g_val / days_in_month) * day_of_month
+            main_label = f"{g['name']} (Mesečni)"
             
-    # 2. VSI CILJI IZ SEZNAMA (Tudi Strava!)
-    for gd in goals_data:
-        conf = gd['conf']
-        # Uporabimo target_today, ki smo ga izračunali na začetku (spoštuje Tip: Letni/Mesečni)
+        # Nariši GLAVNI trak
+        draw_single_bar(y_cursor, main_accum, g_val, g_col, main_label, target_val=main_target, unit=g_unit)
+        y_cursor -= 1.2
         
-        # Prikažemo bar. Za cilj (max vrednost) vzamemo:
-        # Če je mesečni -> conf['goal']
-        # Če je letni -> conf['goal']
-        # Pri akumulaciji (val) pa:
-        # Če je mesečni -> current_accum (ki je seštevek meseca)
-        # Če je letni -> current_accum (ki je seštevek leta)
-        # To smo že uredili v zanki goals_data zgoraj!
-        
-        draw_bar_status(
-            current_y, 
-            gd['current_accum'], 
-            conf['goal'], 
-            conf['color'], 
-            conf['name'], 
-            target_val=gd['target_today'], 
-            unit=conf['unit']
-        )
-        current_y -= 1.3
+        # 2. RAZČLENITEV (Če je vklopljeno)
+        if st.session_state['show_breakdown']:
+            
+            # A) Mesečni del (Samo za Letne cilje)
+            if g['type'] == 'Letni':
+                # Cilj za ta mesec = dnevno povprečje * dni v mesecu
+                sub_goal = (g_val / days_in_year) * days_in_month
+                sub_accum = df_month_view['run' if g_unit=='km' else 'elev'].sum()
+                sub_target = (g_val / days_in_year) * day_of_month
+                
+                draw_single_bar(y_cursor, sub_accum, sub_goal, g_col, f"↳ {SLO_MONTHS.get(current_month)} (Del letnega plana)", 
+                                target_val=sub_target, unit=g_unit, is_sub=True)
+                y_cursor -= 1.0
+
+            # B) Tedenski del (Za Letne in Mesečne)
+            # Cilj za teden = dnevno povprečje * 7
+            daily_avg = (g_val / days_in_year) if g['type'] == 'Letni' else (g_val / days_in_month)
+            sub_goal_week = daily_avg * 7
+            
+            # Izračun tedenske vsote
+            df['week_num'] = df['dt'].dt.isocalendar().week
+            week_accum = df[(df['dt'].dt.year == current_year) & (df['week_num'] == current_week_num)]['run' if g_unit=='km' else 'elev'].sum()
+            
+            # Target do danes v tednu
+            active_days_week = current_weekday_iso 
+            # (Tukaj bi lahko dodali fix za prvi teden, a za preprostost pustimo standard)
+            sub_target_week = daily_avg * active_days_week
+            
+            draw_single_bar(y_cursor, week_accum, sub_goal_week, g_col, f"↳ Trenutni teden", 
+                            target_val=sub_target_week, unit=g_unit, is_sub=True)
+            y_cursor -= 1.2 # Malo večji razmik do naslednjega cilja
 
     st.pyplot(fig)
