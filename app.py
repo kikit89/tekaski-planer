@@ -22,7 +22,6 @@ def load_data():
         df['dt'] = pd.to_datetime(df['date'])
         return df
     else:
-        # Začetni podatki
         data = {
             'date': ['2026-01-01', '2026-01-02'],
             'run': [6.93, 8.34],
@@ -202,6 +201,7 @@ with tab1:
     # --- RISANJE ---
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
+    # Izračun višine
     visible_bars_count = 0
     for g in st.session_state['goals_list']:
         if g.get('show_progress', True):
@@ -209,9 +209,10 @@ with tab1:
             if st.session_state['show_sub_month'] and g['type'] == 'Letni': visible_bars_count += 1
             if st.session_state['show_sub_week']: visible_bars_count += 1
 
-    fig_height = 24 + (visible_bars_count * 2.0)
+    # Malo manjši faktor za višino, ker smo zmanjšali debelino trakov
+    fig_height = 18 + (visible_bars_count * 1.2)
     fig, ax = plt.subplots(figsize=(12, fig_height))
-    ax.set_xlim(0, 8); ax.set_ylim(-2 - (visible_bars_count * 2.0), 7.5); ax.axis('off')
+    ax.set_xlim(0, 8); ax.set_ylim(-2 - (visible_bars_count * 1.2), 7.5); ax.axis('off')
 
     SLO_MONTHS = {1:"JANUAR", 2:"FEBRUAR", 3:"MAREC", 4:"APRIL", 5:"MAJ", 6:"JUNIJ", 7:"JULIJ", 8:"AVGUST", 9:"SEPTEMBER", 10:"OKTOBER", 11:"NOVEMBER", 12:"DECEMBER"}
     month_name = SLO_MONTHS.get(current_month, "")
@@ -302,7 +303,8 @@ with tab1:
     ax.plot([0, 8], [-0.2, -0.2], color='#bdc3c7', lw=2) 
     ax.text(4, -0.8, 'NAPREDEK', fontsize=20, fontweight='bold', ha='center', color='#2c3e50')
     
-    bar_x = 0.5; bar_width = 7; bar_height = 0.7; y_cursor = -2.5
+    # TANJŠI STOLPCI
+    bar_x = 0.5; bar_width = 7; bar_height = 0.5; y_cursor = -2.5
     
     def draw_bar_status(y, val, goal, color, label, target_val=None, unit='km'):
         ax.add_patch(patches.Rectangle((bar_x, y), bar_width, bar_height, facecolor=C_BG, edgecolor='none'))
@@ -323,9 +325,9 @@ with tab1:
             tpos = bar_x + (bar_width * tpct)
             ax.plot([tpos, tpos], [y, y+bar_height], color='black', alpha=0.5, lw=1.5, linestyle=':')
 
-        ax.text(bar_x, y + 0.8, label, fontsize=13, fontweight='bold', color='#555')
+        ax.text(bar_x, y + 0.6, label, fontsize=13, fontweight='bold', color='#555')
         right_txt = f"{val:.1f}/{goal:.0f} {unit}"
-        ax.text(bar_x + bar_width, y + 0.8, right_txt, fontsize=13, fontweight='bold', color='black', ha='right')
+        ax.text(bar_x + bar_width, y + 0.6, right_txt, fontsize=13, fontweight='bold', color='black', ha='right')
         
         if status_txt:
             ax.text(bar_x + bar_width, y + 0.1, f"Stanje: {status_txt}", fontsize=11, fontweight='bold', color=status_col, ha='right')
@@ -340,7 +342,7 @@ with tab1:
         
         # Glavni
         draw_bar_status(y_cursor, accum, meta['goal'], meta['color'], f"{meta['name']}", target_val=main_target, unit=meta['unit'])
-        y_cursor -= 1.8
+        y_cursor -= 1.2 # Manjši razmak
         
         # Mesec
         if st.session_state['show_sub_month'] and meta['type'] == 'Letni':
@@ -348,10 +350,11 @@ with tab1:
             month_accum = df_month_view['elev' if meta['unit']=='m' else 'run'].sum()
             month_target = gd['daily_avg'] * day_of_month
             draw_bar_status(y_cursor, month_accum, month_goal, meta['color'], f"{meta['name']} (Ta mesec)", target_val=month_target, unit=meta['unit'])
-            y_cursor -= 1.8
+            y_cursor -= 1.2
 
-        # Teden (FIX 1. TEDEN)
+        # Teden
         if st.session_state['show_sub_week']:
+            # Privzeti cilj: 7 dni
             week_goal_display = gd['daily_avg'] * 7
             
             # --- POPRAVEK: 1. teden ---
@@ -373,8 +376,8 @@ with tab1:
                 week_target_marker = gd['daily_avg'] * current_weekday_iso
                 
             draw_bar_status(y_cursor, week_accum, week_goal_display, meta['color'], f"{meta['name']} (Ta teden)", target_val=week_target_marker, unit=meta['unit'])
-            y_cursor -= 1.8
+            y_cursor -= 1.2
             
-        y_cursor -= 0.8
+        y_cursor -= 0.3 # Razmak med skupinami
 
     st.pyplot(fig)
