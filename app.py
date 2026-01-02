@@ -190,7 +190,6 @@ with tab1:
     # --- RISANJE KOLEDARJA ---
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
-    # Izračun višine
     visible_bars_count = 0
     for g in st.session_state['goals_list']:
         if g.get('show_progress', True):
@@ -253,7 +252,6 @@ with tab1:
                              ax.text(x+0.5, dot_y, f"{int(current_val)} m", ha='center', va='center', fontsize=11, color=g['color'], fontweight='bold')
                          continue 
 
-                    # TEK
                     if day <= current_day_real:
                         daily_avg = calc['daily_avg']
                         has_data = current_val > 0
@@ -343,24 +341,32 @@ with tab1:
             draw_bar_status(y_cursor, month_accum, month_goal, meta['color'], f"{meta['name']} (Ta mesec)", target_val=month_target, unit=meta['unit'])
             y_cursor -= 1.8
 
-        # Teden (S POPRAVKOM ZA 1. TEDEN)
+        # Teden (S POPRAVKOM ZA 1. TEDEN - VREDNOST NA DESNI)
         if st.session_state['show_sub_week']:
-            week_goal = gd['daily_avg'] * 7
+            # Privzeti cilj: polnih 7 dni
+            week_goal_display = gd['daily_avg'] * 7
+            
+            # --- POPRAVEK: Če je 1. teden, je "Cilj" (na desni) manjši! ---
+            if current_week_num == 1:
+                jan1_weekday = date(current_year, 1, 1).isocalendar()[2]
+                active_days_total = 7 - jan1_weekday + 1
+                week_goal_display = gd['daily_avg'] * active_days_total
+                
+            # Izračun opravljenega
             df['week_num'] = df['dt'].dt.isocalendar().week
             unit_key = 'elev' if meta['unit']=='m' else 'run'
             week_accum = df[(df['dt'].dt.year == current_year) & (df['week_num'] == current_week_num)][unit_key].sum()
             
-            # --- POPRAVEK: Izračun plana samo za pretečene dni v tem tednu ---
-            # Če je 1. teden v letu, plan šteje samo od 1.1. naprej
+            # Izračun "Target do danes" (črtica)
             if current_week_num == 1:
                 jan1_weekday = date(current_year, 1, 1).isocalendar()[2]
-                active_days = current_weekday_iso - jan1_weekday + 1
-                if active_days < 0: active_days = 0
-                week_target = gd['daily_avg'] * active_days
+                active_days_so_far = current_weekday_iso - jan1_weekday + 1
+                if active_days_so_far < 0: active_days_so_far = 0
+                week_target_marker = gd['daily_avg'] * active_days_so_far
             else:
-                week_target = gd['daily_avg'] * current_weekday_iso
+                week_target_marker = gd['daily_avg'] * current_weekday_iso
                 
-            draw_bar_status(y_cursor, week_accum, week_goal, meta['color'], f"{meta['name']} (Ta teden)", target_val=week_target, unit=meta['unit'])
+            draw_bar_status(y_cursor, week_accum, week_goal_display, meta['color'], f"{meta['name']} (Ta teden)", target_val=week_target_marker, unit=meta['unit'])
             y_cursor -= 1.8
             
         y_cursor -= 0.8
