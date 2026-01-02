@@ -46,7 +46,7 @@ def init_settings():
 
 # --- APLIKACIJA ---
 init_settings()
-st.title("🏃‍♀️ Moj Planer")
+# st.title("🏃‍♀️ Moj Planer") # NASLOV ODSTRANJEN
 
 tab1, tab2, tab3 = st.tabs(["📊 Koledar", "➕ Vnos", "⚙️ Nastavitve"])
 
@@ -149,7 +149,7 @@ with tab1:
     days_in_month = calendar.monthrange(current_year, current_month)[1]
     
     current_week_num = today.isocalendar()[1]
-    current_weekday_iso = today.isocalendar()[2] # 1=Pon (TO JE MANJKALO PREJ!)
+    current_weekday_iso = today.isocalendar()[2] # 1=Pon (POPRAVEK!)
     
     active_goals = [g for g in st.session_state['goals_list'] if g['active']]
     
@@ -185,13 +185,14 @@ with tab1:
     # --- RISANJE KOLEDARJA ---
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
-    # Višina grafa
+    # Višina grafa (Povečana osnova da ni stisnjeno!)
     bars_count = len(st.session_state['goals_list'])
     extra_rows = 0
     if st.session_state['show_sub_month']: extra_rows += len([g for g in st.session_state['goals_list'] if g['type'] == 'Letni'])
     if st.session_state['show_sub_week']: extra_rows += bars_count
 
-    fig_height = 14 + ((bars_count + extra_rows) * 1.5)
+    # POVEČANA VIŠINA FIGURI (Osnova 18)
+    fig_height = 18 + ((bars_count + extra_rows) * 1.5)
     fig, ax = plt.subplots(figsize=(12, fig_height))
     ax.set_xlim(0, 8); ax.set_ylim(-2 - (bars_count + extra_rows) * 1.5, 7.5); ax.axis('off')
 
@@ -228,7 +229,7 @@ with tab1:
             
             ax.text(x + 0.05, y + 0.85, str(day), fontsize=14, fontweight='bold', color='#7f8c8d')
             
-            # --- VERTIKALNI KROGCI ZNOTRAJ DNEVA ---
+            # --- VERTIKALNI KROGCI ---
             if active_goals_count > 0:
                 spacing = 0.75 / max(active_goals_count, 1)
                 
@@ -243,13 +244,13 @@ with tab1:
                     dot_y = (y + 0.70) - (i * spacing)
                     current_val = val_m if g['unit']=='m' else val_km
                     
-                    # VIŠINCI (Samo številka)
+                    # VIŠINCI (Samo številka, brez kroga)
                     if g['unit'] == 'm':
                          if current_val > 0:
                              ax.text(x+0.5, dot_y, f"{int(current_val)} m", ha='center', va='center', fontsize=9, color=g['color'], fontweight='bold')
                          continue 
 
-                    # TEK (Krogci + Act/Plan)
+                    # TEK (Krogci)
                     # 1. PRETEKLOST
                     if day <= current_day_real:
                         daily_avg = calc['daily_avg']
@@ -278,9 +279,13 @@ with tab1:
                         
                         ax.text(x+0.5, dot_y, f"Cilj: {target_tomorrow:.1f}", ha='center', va='center', fontsize=8, fontweight='bold', color=txt_col)
 
-                    # 3. PRIHODNOST
+                    # 3. PRIHODNOST (Sivo, kot na sliki)
                     else:
+                        standard_avg = calc['daily_avg']
+                        # Siva pika
                         ax.add_patch(patches.Circle((x+0.15, dot_y), 0.04, color='#ecf0f1'))
+                        # Siva številka (plan)
+                        ax.text(x+0.25, dot_y, f"{standard_avg:.1f}", va='center', fontsize=7, color='#95a5a6')
 
         # TEDENSKE VSOTE
         if w_sum_dist > 0:
@@ -289,7 +294,7 @@ with tab1:
             ax.text(7.5, 5 - week_idx + 0.3, f"{int(w_sum_elev)} m", ha='center', va='center', fontsize=10, fontweight='bold', color='#8e44ad')
 
     # -----------------------------------------------------------
-    # STOLPCI SPODAJ (Semafor, Poravnani Levo)
+    # STOLPCI SPODAJ
     # -----------------------------------------------------------
     ax.plot([0, 8], [-0.2, -0.2], color='#bdc3c7', lw=2) 
     ax.text(4, -0.8, 'NAPREDEK', fontsize=18, fontweight='bold', ha='center', color='#2c3e50')
@@ -297,7 +302,6 @@ with tab1:
     bar_x = 0.5; bar_width = 7; bar_height = 0.6; y_cursor = -2.2
     
     def draw_bar_status(y, val, goal, color, label, target_val=None, unit='km'):
-        # Brez zamikov
         ax.add_patch(patches.Rectangle((bar_x, y), bar_width, bar_height, facecolor=C_BG, edgecolor='none'))
         pct = val / goal if goal > 0 else 0
         if pct > 1: pct = 1
