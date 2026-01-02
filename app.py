@@ -201,30 +201,25 @@ with tab1:
     # --- RISANJE ---
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
-    # --- DINAMIČEN IZRAČUN VIŠINE ---
-    # Seštejemo koliko vrstic (enot) rabimo
-    needed_y_space = 0
+    # DINAMIČNA VIŠINA (ZELO POMEMBNO)
+    # Preštejemo vrstice, ki jih bomo narisali spodaj
+    visible_rows = 0
     for g in st.session_state['goals_list']:
         if g.get('show_progress', True):
-            needed_y_space += 1.2 # Glavni trak + razmik
-            if st.session_state['show_sub_month'] and g['type'] == 'Letni': needed_y_space += 1.2
-            if st.session_state['show_sub_week']: needed_y_space += 1.2
-            needed_y_space += 0.3 # Dodaten razmik med skupinami
+            visible_rows += 1
+            if st.session_state['show_sub_month'] and g['type'] == 'Letni': visible_rows += 1
+            if st.session_state['show_sub_week']: visible_rows += 1
 
-    # Koledar zasede od y=0 do y=8 (cca 8 enot) + glava (2 enoti) = 10 enot
-    # Spodnji del se začne pri y=-2 in gre navzdol za `needed_y_space`
-    
-    lowest_y = -2.5 - needed_y_space
-    total_y_span = 8.0 - lowest_y # Od vrha (8) do dna
-    
-    # Faktor povečave (pixels per unit)
-    fig_height = total_y_span * 1.8 
+    # Base height = Koledar (cca 12) + (št_vrstic * višina_vrstice)
+    # Zmanjšal sem faktorje za bolj kompakten izgled
+    fig_height = 13 + (visible_rows * 1.0) 
 
     fig, ax = plt.subplots(figsize=(12, fig_height))
-    ax.set_xlim(0, 7)
-    # Nastavimo spodnjo mejo točno tam, kjer se končajo podatki
-    ax.set_ylim(lowest_y, 8.0) 
-    ax.axis('off')
+    
+    # Y-limit se prilagodi številu vrstic. 
+    # Če je visible_rows = 5, rabimo cca -5 prostora spodaj
+    bottom_limit = -2 - (visible_rows * 1.0)
+    ax.set_xlim(0, 7); ax.set_ylim(bottom_limit, 7.5); ax.axis('off')
 
     SLO_MONTHS = {1:"JANUAR", 2:"FEBRUAR", 3:"MAREC", 4:"APRIL", 5:"MAJ", 6:"JUNIJ", 7:"JULIJ", 8:"AVGUST", 9:"SEPTEMBER", 10:"OKTOBER", 11:"NOVEMBER", 12:"DECEMBER"}
     month_name = SLO_MONTHS.get(current_month, "")
@@ -308,9 +303,13 @@ with tab1:
 
     # STOLPCI SPODAJ
     ax.plot([0, 7], [-0.2, -0.2], color='#bdc3c7', lw=2) 
-    ax.text(3.5, -0.8, 'NAPREDEK', fontsize=20, fontweight='bold', ha='center', color='#2c3e50')
     
-    bar_x = 0.2; bar_width = 6.6; bar_height = 0.5; y_cursor = -2.5
+    # NASLOV "NAPREDEK" MALO VIŠJE
+    ax.text(3.5, -0.7, 'NAPREDEK', fontsize=20, fontweight='bold', ha='center', color='#2c3e50')
+    
+    # ZAČETEK STOLPCEV
+    bar_x = 0.2; bar_width = 6.6; bar_height = 0.5
+    y_cursor = -1.5 # Začnemo višje, takoj pod naslovom
     
     def draw_bar_status(y, val, goal, color, label, target_val=None, unit='km'):
         ax.add_patch(patches.Rectangle((bar_x, y), bar_width, bar_height, facecolor=C_BG, edgecolor='none'))
@@ -348,7 +347,7 @@ with tab1:
         
         # Glavni
         draw_bar_status(y_cursor, accum, meta['goal'], meta['color'], f"{meta['name']}", target_val=main_target, unit=meta['unit'])
-        y_cursor -= 1.2
+        y_cursor -= 0.9 # ZELO KOMPAKTEN RAZMAK (prej 1.2 ali 1.4)
         
         # Mesec
         if st.session_state['show_sub_month'] and meta['type'] == 'Letni':
@@ -356,7 +355,7 @@ with tab1:
             month_accum = df_month_view['elev' if meta['unit']=='m' else 'run'].sum()
             month_target = gd['daily_avg'] * day_of_month
             draw_bar_status(y_cursor, month_accum, month_goal, meta['color'], f"{meta['name']} (Ta mesec)", target_val=month_target, unit=meta['unit'])
-            y_cursor -= 1.2
+            y_cursor -= 0.9
 
         # Teden (FIX 1. TEDEN)
         if st.session_state['show_sub_week']:
@@ -380,8 +379,8 @@ with tab1:
                 week_target_marker = gd['daily_avg'] * current_weekday_iso
                 
             draw_bar_status(y_cursor, week_accum, week_goal_display, meta['color'], f"{meta['name']} (Ta teden)", target_val=week_target_marker, unit=meta['unit'])
-            y_cursor -= 1.2
+            y_cursor -= 0.9
             
-        y_cursor -= 0.3
+        y_cursor -= 0.15 # Minimalen razmak med skupinami (prej 0.3)
 
     st.pyplot(fig)
