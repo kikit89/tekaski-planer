@@ -4,19 +4,18 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import calendar
 import os
-from datetime import date
+from datetime import date, datetime
 
 # --- KONFIGURACIJA ---
-st.set_page_config(page_title="Tekaški Planer 2026", layout="centered", page_icon="🏃‍♀️")
+st.set_page_config(page_title="Moj Tekaški Planer", layout="centered", page_icon="🏃‍♀️")
 FILE_NAME = 'teki_data.csv'
 
-# --- PODATKOVNE FUNKCIJE ---
+# --- PODATKI ---
 def load_data():
-    # Preverimo, če datoteka obstaja
     if os.path.exists(FILE_NAME):
         return pd.read_csv(FILE_NAME)
     else:
-        # ZAČETNI PODATKI (1. in 2. Januar) - da se ne izgubijo pri ponovnem zagonu
+        # ZAČETNI PODATKI
         data = {
             'date': ['2026-01-01', '2026-01-02'],
             'run': [6.93, 8.34],
@@ -29,133 +28,157 @@ def load_data():
 def save_data(df):
     df.to_csv(FILE_NAME, index=False)
 
-def get_settings():
-    if 'yearly_goal' not in st.session_state: st.session_state['yearly_goal'] = 2500.0
-    if 'strava_goal' not in st.session_state: st.session_state['strava_goal'] = 300.0
-    if 'elev_goal' not in st.session_state: st.session_state['elev_goal'] = 80000.0
+def init_settings():
+    # KATEGORIJA 1: DNEVNI MINIMUM
+    if 'cat1_name' not in st.session_state: st.session_state['cat1_name'] = "Tek (1.6km)"
+    if 'cat1_color' not in st.session_state: st.session_state['cat1_color'] = "#3498db"
+    if 'cat1_goal' not in st.session_state: st.session_state['cat1_goal'] = 1.6
+    if 'cat1_active' not in st.session_state: st.session_state['cat1_active'] = True
+
+    # KATEGORIJA 2: DOLGOROČNI CILJ (Banking)
+    if 'cat2_name' not in st.session_state: st.session_state['cat2_name'] = "Letni Plan"
+    if 'cat2_color' not in st.session_state: st.session_state['cat2_color'] = "#f1c40f"
+    if 'cat2_goal' not in st.session_state: st.session_state['cat2_goal'] = 2500.0
+    if 'cat2_active' not in st.session_state: st.session_state['cat2_active'] = True
+
+    # KATEGORIJA 3: MESEČNI CILJ (Banking)
+    if 'cat3_name' not in st.session_state: st.session_state['cat3_name'] = "Strava Izziv"
+    if 'cat3_color' not in st.session_state: st.session_state['cat3_color'] = "#FC4C02"
+    if 'cat3_goal' not in st.session_state: st.session_state['cat3_goal'] = 300.0
+    if 'cat3_active' not in st.session_state: st.session_state['cat3_active'] = True
+
+    # KATEGORIJA 4: VIŠINCI
+    if 'cat4_name' not in st.session_state: st.session_state['cat4_name'] = "Hribi"
+    if 'cat4_color' not in st.session_state: st.session_state['cat4_color'] = "#8e44ad"
+    if 'cat4_goal' not in st.session_state: st.session_state['cat4_goal'] = 80000.0
+    if 'cat4_active' not in st.session_state: st.session_state['cat4_active'] = True
     
-    if 'show_daily_elev' not in st.session_state: st.session_state['show_daily_elev'] = True
-    if 'show_run_dot' not in st.session_state: st.session_state['show_run_dot'] = True
-    
-    if 'bottom_bars' not in st.session_state: 
-        st.session_state['bottom_bars'] = ["Mesečni cilj", "Strava Izziv", "Letni cilj"]
+    if 'show_bars' not in st.session_state: 
+        st.session_state['show_bars'] = ["cat2", "cat3", "cat4"]
 
-# --- GLAVNI VMESNIK ---
-st.title("🏃‍♀️ Moj Tekaški Trener")
-get_settings()
+# --- APLIKACIJA ---
+st.title("🏃‍♀️ Pametni Planer")
+init_settings()
 
-tab1, tab2, tab3 = st.tabs(["📊 Koledar", "➕ Vnos", "⚙️ Nastavitve"])
+tab1, tab2, tab3 = st.tabs(["📊 Koledar", "➕ Vnos", "⚙️ Urejanje"])
 
-# --- 3. ZAVIHEK: NASTAVITVE ---
+# --- ZAVIHEK 3: UREJANJE ---
 with tab3:
-    st.header("Nastavitve Prikaza")
+    st.header("Nastavitve Kategorij")
     
-    st.subheader("👀 Prikaz na koledarju")
-    col_v1, col_v2 = st.columns(2)
-    with col_v1:
-        st.session_state['show_run_dot'] = st.checkbox(
-            "Dnevni tek (Modra pika)", 
-            value=st.session_state['show_run_dot'],
-            help="Če izklopiš, se ostali podatki povečajo in pomaknejo navzgor."
-        )
-    with col_v2:
-        st.session_state['show_daily_elev'] = st.checkbox(
-            "Dnevni višinci (Številka)", 
-            value=st.session_state['show_daily_elev']
-        )
+    with st.expander(f"🔹 {st.session_state['cat1_name']}", expanded=False):
+        c1, c2 = st.columns([1, 3])
+        with c1: st.session_state['cat1_color'] = st.color_picker("Barva #1", st.session_state['cat1_color'])
+        with c2: st.session_state['cat1_name'] = st.text_input("Ime #1", st.session_state['cat1_name'])
+        st.session_state['cat1_goal'] = st.number_input("Cilj 1 (Dnevni km)", value=st.session_state['cat1_goal'])
+        st.session_state['cat1_active'] = st.checkbox("Prikaži #1", value=st.session_state['cat1_active'])
+
+    with st.expander(f"🔸 {st.session_state['cat2_name']}", expanded=False):
+        c1, c2 = st.columns([1, 3])
+        with c1: st.session_state['cat2_color'] = st.color_picker("Barva #2", st.session_state['cat2_color'])
+        with c2: st.session_state['cat2_name'] = st.text_input("Ime #2", st.session_state['cat2_name'])
+        st.session_state['cat2_goal'] = st.number_input("Cilj 2 (Letni km)", value=st.session_state['cat2_goal'])
+        st.session_state['cat2_active'] = st.checkbox("Prikaži #2", value=st.session_state['cat2_active'])
+
+    with st.expander(f"🔸 {st.session_state['cat3_name']}", expanded=False):
+        c1, c2 = st.columns([1, 3])
+        with c1: st.session_state['cat3_color'] = st.color_picker("Barva #3", st.session_state['cat3_color'])
+        with c2: st.session_state['cat3_name'] = st.text_input("Ime #3", st.session_state['cat3_name'])
+        st.session_state['cat3_goal'] = st.number_input("Cilj 3 (Mesečni km)", value=st.session_state['cat3_goal'])
+        st.session_state['cat3_active'] = st.checkbox("Prikaži #3", value=st.session_state['cat3_active'])
+
+    with st.expander(f"🔸 {st.session_state['cat4_name']}", expanded=False):
+        c1, c2 = st.columns([1, 3])
+        with c1: st.session_state['cat4_color'] = st.color_picker("Barva #4", st.session_state['cat4_color'])
+        with c2: st.session_state['cat4_name'] = st.text_input("Ime #4", st.session_state['cat4_name'])
+        st.session_state['cat4_goal'] = st.number_input("Cilj 4 (Višinci)", value=st.session_state['cat4_goal'])
+        st.session_state['cat4_active'] = st.checkbox("Prikaži #4", value=st.session_state['cat4_active'])
 
     st.write("---")
-    st.subheader("📊 Spodnji stolpci (Cilji)")
-    st.info("Izberi, katere napredke želiš spremljati na dnu zaslona.")
-    
-    options = ["Mesečni cilj", "Strava Izziv", "Letni cilj", "Letni Višinci"]
-    st.session_state['bottom_bars'] = st.multiselect(
-        "Aktivni stolpci:", 
-        options, 
-        default=st.session_state['bottom_bars']
-    )
-    
-    st.write("---")
-    st.subheader("Vrednosti ciljev")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.session_state['yearly_goal'] = st.number_input("Letni cilj (km)", value=st.session_state['yearly_goal'], step=50.0)
-        st.session_state['strava_goal'] = st.number_input("Strava Jan (km)", value=st.session_state['strava_goal'], step=10.0)
-    with c2:
-        st.session_state['elev_goal'] = st.number_input("Letni višinci (m)", value=st.session_state['elev_goal'], step=1000.0)
+    opts = {"cat1": st.session_state['cat1_name'], "cat2": st.session_state['cat2_name'], 
+            "cat3": st.session_state['cat3_name'], "cat4": st.session_state['cat4_name']}
+    st.session_state['show_bars'] = st.multiselect("Stolpci na dnu:", options=["cat1", "cat2", "cat3", "cat4"], 
+                                                 format_func=lambda x: opts[x], default=st.session_state['show_bars'])
 
-# --- 2. ZAVIHEK: VNOS ---
+# --- ZAVIHEK 2: VNOS ---
 with tab2:
-    st.header("Zabeleži aktivnost")
+    st.header("Nov vnos")
     with st.form("entry"):
         d_date = st.date_input("Datum", value=date.today())
-        run = st.number_input("Tek (km)", min_value=0.0, step=0.1, format="%.2f")
-        elev = st.number_input("Višinci (m)", min_value=0, step=10)
+        st.caption(f"Vnos kilometrov:")
+        run = st.number_input("Razdalja (km)", min_value=0.0, step=0.1, format="%.2f")
+        st.caption(f"Vnos višincev:")
+        elev = st.number_input("Višina (m)", min_value=0, step=10)
         note = st.text_input("Opomba")
         
-        if st.form_submit_button("Shrani Aktivnost"):
+        if st.form_submit_button("Shrani"):
             df = load_data()
             d_str = d_date.strftime("%Y-%m-%d")
-            # Logika za shranjevanje/posodabljanje
             if d_str in df['date'].values:
                 df.loc[df['date'] == d_str, ['run', 'elev', 'note']] = [run, elev, note]
-                st.success(f"Posodobljeno za {d_str}!")
+                st.success(f"Posodobljeno!")
             else:
                 new = pd.DataFrame({'date': [d_str], 'run': [run], 'walk': [0], 'elev': [elev], 'note': [note]})
                 df = pd.concat([df, new], ignore_index=True)
-                st.success(f"Dodano za {d_str}!")
+                st.success(f"Shranjeno!")
             save_data(df)
 
-# --- 1. ZAVIHEK: VIZUALIZACIJA ---
+# --- ZAVIHEK 1: VIZUALIZACIJA ---
 with tab1:
     df = load_data()
     df['dt'] = pd.to_datetime(df['date'])
     df_jan = df[(df['dt'].dt.year == 2026) & (df['dt'].dt.month == 1)]
     
     data = {}
+    total_run_real = 0
     for _, row in df_jan.iterrows():
         is_today = (row['dt'].date() == date.today())
         data[row['dt'].day] = {'run': row['run'], 'elev': row['elev'], 'is_today': is_today}
+        # Za izračun 'banke' upoštevamo samo teke do vključno danes (oz. zadnjega vnosa)
+        if row['dt'].date() <= date.today():
+            total_run_real += row['run']
 
-    YEAR_GOAL = st.session_state['yearly_goal']
-    STRAVA_GOAL = st.session_state['strava_goal']
-    ELEV_GOAL = st.session_state['elev_goal']
-    DAILY_QUOTA = YEAR_GOAL / 365.0
-    STRAVA_DAILY = STRAVA_GOAL / 31.0
-    MONTHLY_GOAL = DAILY_QUOTA * 31
-    
-    show_run_dot = st.session_state['show_run_dot']
-    show_elev_daily = st.session_state['show_daily_elev']
-    active_bars = st.session_state['bottom_bars']
+    # Nastavitve
+    C1_N = st.session_state['cat1_name']; C1_C = st.session_state['cat1_color']; C1_G = st.session_state['cat1_goal']; C1_A = st.session_state['cat1_active']
+    C2_N = st.session_state['cat2_name']; C2_C = st.session_state['cat2_color']; C2_G = st.session_state['cat2_goal']; C2_A = st.session_state['cat2_active']
+    C3_N = st.session_state['cat3_name']; C3_C = st.session_state['cat3_color']; C3_G = st.session_state['cat3_goal']; C3_A = st.session_state['cat3_active']
+    C4_N = st.session_state['cat4_name']; C4_C = st.session_state['cat4_color']; C4_G = st.session_state['cat4_goal']; C4_A = st.session_state['cat4_active']
 
-    # --- RISANJE GRAFA ---
-    C_RUN = '#3498db'; C_QUOTA = '#f1c40f'; C_STRAVA = '#FC4C02'; C_ELEV = '#8e44ad'
-    C_BG = '#ecf0f1'; C_SUCCESS = '#2ecc71'; C_FAIL = '#e74c3c'; C_PENDING = '#e67e22'
+    # --- BANKING LOGIC (Izračun dolga/kredita) ---
+    today_day = date.today().timetuple().tm_yday
+    current_day_month = date.today().day
     
-    bars_count = len(active_bars)
-    fig_height = 13 + (bars_count * 1)
+    # KROGREC 2 (Letni):
+    daily_avg_2 = C2_G / 365.0
+    target_accum_2 = daily_avg_2 * today_day # Koliko bi morala imeti do danes
+    # Uporabimo dejanske teke iz celega leta (tukaj poenostavljeno vzamemo vse v tabeli za 2026)
+    actual_accum_year = df[df['dt'].dt.year == 2026]['run'].sum()
+    surplus_2 = actual_accum_year - target_accum_2
+    next_goal_2 = daily_avg_2 - surplus_2 # Če je surplus pozitiven, je cilj manjši
+
+    # KROGEC 3 (Mesečni):
+    daily_avg_3 = C3_G / 31.0
+    target_accum_3 = daily_avg_3 * current_day_month # Koliko bi morala imeti do danes v tem mesecu
+    # Uporabimo dejanske teke samo za januar
+    actual_accum_month = df_jan[df_jan['dt'].dt.date <= date.today()]['run'].sum()
+    surplus_3 = actual_accum_month - target_accum_3
+    next_goal_3 = daily_avg_3 - surplus_3
+
+    # --- RISANJE ---
+    C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
+    
+    active_bars = st.session_state['show_bars']
+    fig_height = 13 + (len(active_bars) * 1)
     fig, ax = plt.subplots(figsize=(12, fig_height))
-    ax.set_xlim(0, 8); ax.set_ylim(-2 - bars_count, 7.5); ax.axis('off')
+    ax.set_xlim(0, 8); ax.set_ylim(-2 - len(active_bars), 7.5); ax.axis('off')
 
-    ax.text(4, 7.2, 'JANUAR 2026', fontsize=24, fontweight='bold', ha='center', color='#2c3e50')
+    ax.text(4, 7.2, 'JANUAR 2026', fontsize=24, fontweight='bold', ha='center', color=C_TEXT)
     
     leg_y = 6.7
-    # Legenda
-    if show_run_dot:
-        ax.add_patch(patches.Circle((1.0, leg_y), 0.15, color=C_RUN))
-        ax.text(1.3, leg_y, 'Tek', va='center', fontsize=12)
-    
-    if "Letni cilj" in active_bars:
-        ax.add_patch(patches.Circle((3.0, leg_y), 0.15, color=C_QUOTA))
-        ax.text(3.3, leg_y, 'Kvota', va='center', fontsize=12)
-    
-    if "Strava Izziv" in active_bars:
-        ax.add_patch(patches.Circle((5.0, leg_y), 0.15, color=C_STRAVA))
-        ax.text(5.3, leg_y, 'Strava', va='center', fontsize=12)
-        
-    if show_elev_daily: 
-        ax.add_patch(patches.Circle((7.0, leg_y), 0.15, color=C_ELEV))
-        ax.text(7.3, leg_y, 'Višinci', va='center', fontsize=12)
+    if C1_A: ax.add_patch(patches.Circle((1.0, leg_y), 0.15, color=C1_C)); ax.text(1.3, leg_y, C1_N, va='center', fontsize=12)
+    if C2_A: ax.add_patch(patches.Circle((3.0, leg_y), 0.15, color=C2_C)); ax.text(3.3, leg_y, C2_N, va='center', fontsize=12)
+    if C3_A: ax.add_patch(patches.Circle((5.0, leg_y), 0.15, color=C3_C)); ax.text(5.3, leg_y, C3_N, va='center', fontsize=12)
+    if C4_A: ax.add_patch(patches.Circle((7.0, leg_y), 0.15, color=C4_C)); ax.text(7.3, leg_y, C4_N, va='center', fontsize=12)
 
     ax.plot([0, 8], [6.4, 6.4], color='#bdc3c7', lw=2)
 
@@ -164,114 +187,101 @@ with tab1:
     for i, dname in enumerate(days_of_week):
         ax.text(i + 0.5, 6.1, dname, ha='center', va='center', fontsize=14, fontweight='bold', color='#34495e')
 
+    current_day_real = date.today().day
+
     for week_idx, week in enumerate(cal):
-        w_sum_dist = 0
-        w_sum_elev = 0
+        w_sum_dist = 0; w_sum_elev = 0
         for day_idx, day in enumerate(week):
             x = day_idx; y = 5 - week_idx
             rect = patches.Rectangle((x, y), 1, 1, fill=True, facecolor='white', edgecolor='#ecf0f1', linewidth=2)
             ax.add_patch(rect)
-            
             if day == 0: continue
             
             ax.text(x + 0.05, y + 0.85, str(day), fontsize=14, fontweight='bold', color='#7f8c8d')
             
-            # --- DINAMIČNO POZICIONIRANJE ---
-            # Če je tek (modra) izklopljen, pomaknemo vse ostalo GOR in malo povečamo pisavo
-            if show_run_dot:
-                pos_run = (x + 0.25, y + 0.72)
-                pos_quota = (x + 0.25, y + 0.56)
-                pos_strava = (x + 0.25, y + 0.40)
-                pos_elev = (x + 0.25, y + 0.24)
-                font_sz_goals = 9
+            # Pozicije
+            if C1_A:
+                pos_1 = (x+0.25, y+0.72); pos_2 = (x+0.25, y+0.56); pos_3 = (x+0.25, y+0.40); pos_4 = (x+0.25, y+0.24)
+                f_sz = 9
             else:
-                # Modre ni -> ostali dobijo več prostora
-                pos_run = (0,0) # Skrito
-                pos_quota = (x + 0.25, y + 0.70)  # Višje
-                pos_strava = (x + 0.25, y + 0.50) # Višje
-                pos_elev = (x + 0.25, y + 0.30)   # Višje
-                font_sz_goals = 10.5 # Malo večja pisava
+                pos_1 = (0,0); pos_2 = (x+0.25, y+0.70); pos_3 = (x+0.25, y+0.50); pos_4 = (x+0.25, y+0.30)
+                f_sz = 10.5
             
-            text_off_x = 0.15
-            
+            # --- 1. PRETEKLOST (Podatki obstajajo) ---
             if day in data:
-                d = data[day]; run_km = d['run']; elev = d['elev']; is_today = d['is_today']
-                w_sum_dist += run_km
-                w_sum_elev += elev
+                d = data[day]; val1 = d['run']; val2 = d['elev']; is_today = d['is_today']
+                w_sum_dist += val1; w_sum_elev += val2
                 
-                run_ok = run_km >= 1.6
-                quota_ok = run_km >= DAILY_QUOTA
-                strava_ok = run_km >= STRAVA_DAILY
-                
-                # 1. RUN (Modra pika) - Samo če je vklopljeno
-                if show_run_dot:
-                    if run_ok: 
-                        ax.add_patch(patches.Circle(pos_run, 0.07, color=C_RUN))
-                        ax.text(pos_run[0], pos_run[1], '✓', ha='center', va='center', color='white', fontweight='bold', fontsize=9)
-                    else: 
-                        col = C_PENDING if is_today else C_BG
-                        ax.add_patch(patches.Circle(pos_run, 0.07, fill=False, edgecolor=col, lw=2))
-                    
-                    # Tekst kilometrov (samo če je pika vklopljena)
-                    ax.text(pos_run[0]+text_off_x, pos_run[1], f"{run_km:.1f} km", va='center', fontsize=9, fontweight='bold', color='#2c3e50')
-                
-                # 2. QUOTA
-                if "Letni cilj" in active_bars:
-                    if quota_ok: 
-                        ax.add_patch(patches.Circle(pos_quota, 0.07, color=C_QUOTA))
-                        ax.text(pos_quota[0], pos_quota[1], '✓', ha='center', va='center', color='white', fontweight='bold', fontsize=font_sz_goals)
-                    else:
-                        col = C_PENDING if is_today else 'salmon'
-                        ax.add_patch(patches.Circle(pos_quota, 0.07, fill=False, edgecolor=col, lw=2))
-                        ax.text(pos_quota[0], pos_quota[1], '!', ha='center', va='center', color=col, fontweight='bold', fontsize=font_sz_goals)
-                    ax.text(pos_quota[0]+text_off_x, pos_quota[1], f"{run_km:.1f}/{DAILY_QUOTA:.1f}", va='center', fontsize=font_sz_goals-1, color='black')
+                # CILJ 1
+                if C1_A:
+                    ok = val1 >= C1_G
+                    col = C1_C if ok else (C_PENDING if is_today else C_BG)
+                    if ok: ax.add_patch(patches.Circle(pos_1, 0.07, color=col)); ax.text(pos_1[0], pos_1[1], '✓', ha='center', va='center', color='white', fontweight='bold', fontsize=9)
+                    else: ax.add_patch(patches.Circle(pos_1, 0.07, fill=False, edgecolor=col, lw=2))
+                    ax.text(pos_1[0]+0.15, pos_1[1], f"{val1:.1f} km", va='center', fontsize=9, fontweight='bold', color='#333')
 
-                # 3. STRAVA
-                if "Strava Izziv" in active_bars:
-                    if strava_ok: 
-                        ax.add_patch(patches.Circle(pos_strava, 0.07, color=C_STRAVA))
-                    else:
-                        col = C_PENDING if is_today else 'salmon'
-                        ax.add_patch(patches.Circle(pos_strava, 0.07, fill=False, edgecolor=col, lw=2))
-                    ax.text(pos_strava[0]+text_off_x, pos_strava[1], f"{run_km:.1f}/{STRAVA_DAILY:.1f}", va='center', fontsize=font_sz_goals-1, color='black')
+                # CILJ 2 (Fiksna kvota preteklosti)
+                if C2_A:
+                    ok = val1 >= daily_avg_2
+                    col = C2_C if ok else (C_PENDING if is_today else 'salmon')
+                    if ok: ax.add_patch(patches.Circle(pos_2, 0.07, color=col)); ax.text(pos_2[0], pos_2[1], '✓', ha='center', va='center', color='white', fontweight='bold', fontsize=9)
+                    else: ax.add_patch(patches.Circle(pos_2, 0.07, fill=False, edgecolor=col, lw=2)); ax.text(pos_2[0], pos_2[1], '!', ha='center', va='center', color=col, fontweight='bold', fontsize=9)
+                    # Prikaz dejanskega stanja
+                    ax.text(pos_2[0]+0.15, pos_2[1], f"{val1:.1f}/{daily_avg_2:.1f}", va='center', fontsize=f_sz-1)
+
+                # CILJ 3
+                if C3_A:
+                    ok = val1 >= daily_avg_3
+                    col = C3_C if ok else (C_PENDING if is_today else 'salmon')
+                    if ok: ax.add_patch(patches.Circle(pos_3, 0.07, color=col))
+                    else: ax.add_patch(patches.Circle(pos_3, 0.07, fill=False, edgecolor=col, lw=2))
+                    ax.text(pos_3[0]+0.15, pos_3[1], f"{val1:.1f}/{daily_avg_3:.1f}", va='center', fontsize=f_sz-1)
+
+                # CILJ 4
+                if C4_A and val2 > 0:
+                     ax.add_patch(patches.Circle(pos_4, 0.07, color=C4_C))
+                     ax.text(pos_4[0]+0.15, pos_4[1], f"+{int(val2)}", va='center', fontsize=f_sz, color=C4_C)
+            
+            # --- 2. PRIHODNOST (Napoved) ---
+            elif day > current_day_real:
+                # CILJ 2 NAPOVED (Banking)
+                if C2_A:
+                    # Barva teksta: Zelena, če je cilj lažji od povprečja, Rdeča če je težji
+                    txt_col = C_GOOD if next_goal_2 <= daily_avg_2 else C_BAD
+                    ax.add_patch(patches.Circle(pos_2, 0.07, color='#f2f4f4')) # Siv krogec
+                    ax.text(pos_2[0]+0.15, pos_2[1], f"Cilj: {next_goal_2:.1f}", va='center', fontsize=f_sz-1, fontweight='bold', color=txt_col)
                 
-                # 4. ELEV
-                if show_elev_daily and elev > 0:
-                     ax.add_patch(patches.Circle(pos_elev, 0.07, color=C_ELEV))
-                     ax.text(pos_elev[0]+text_off_x, pos_elev[1], f"+{int(elev)} m", va='center', fontsize=font_sz_goals, color=C_ELEV)
-        
-        # TEDENSKA VSOTA
+                # CILJ 3 NAPOVED (Banking)
+                if C3_A:
+                    txt_col = C_GOOD if next_goal_3 <= daily_avg_3 else C_BAD
+                    ax.add_patch(patches.Circle(pos_3, 0.07, color='#f2f4f4'))
+                    ax.text(pos_3[0]+0.15, pos_3[1], f"Cilj: {next_goal_3:.1f}", va='center', fontsize=f_sz-1, fontweight='bold', color=txt_col)
+
         if w_sum_dist > 0:
             ax.text(7.5, 5 - week_idx + 0.6, f"{w_sum_dist:.1f} km", ha='center', va='center', fontsize=11, fontweight='bold', color='#555')
             if w_sum_elev > 0:
-                ax.text(7.5, 5 - week_idx + 0.3, f"{int(w_sum_elev)} m", ha='center', va='center', fontsize=11, fontweight='bold', color=C_ELEV)
+                ax.text(7.5, 5 - week_idx + 0.3, f"{int(w_sum_elev)} m", ha='center', va='center', fontsize=11, fontweight='bold', color=C4_C)
 
+    # SPODNJI STOLPCI
     ax.plot([0, 8], [-0.2, -0.2], color='#bdc3c7', lw=2) 
     ax.text(4, -0.8, 'NAPREDEK DO CILJA', fontsize=18, fontweight='bold', ha='center', color='#2c3e50')
     
     bar_x = 0.5; bar_width = 7; bar_height = 0.6; y_start = -1.8
-    
-    total_run_so_far = df_jan['run'].sum()
-    total_elev_so_far = df_jan['elev'].sum()
+    total_run_so_far = df_jan['run'].sum(); total_elev_so_far = df_jan['elev'].sum()
     total_run_year = df[df['dt'].dt.year == 2026]['run'].sum()
     
     def draw_bar(y, val, goal, color, label, unit='km'):
         ax.add_patch(patches.Rectangle((bar_x, y), bar_width, bar_height, facecolor=C_BG, edgecolor='none'))
-        pct = val / goal if goal > 0 else 0
-        pct = 1 if pct > 1 else pct
+        pct = val / goal if goal > 0 else 0; pct = 1 if pct > 1 else pct
         ax.add_patch(patches.Rectangle((bar_x, y), bar_width * pct, bar_height, facecolor=color, edgecolor='none'))
         ax.text(bar_x, y + 0.7, f"{label}", fontsize=12, fontweight='bold', color='#555')
         ax.text(bar_x + bar_width, y + 0.7, f"{val:.1f} / {goal:.0f} {unit}", fontsize=12, fontweight='bold', color='black', ha='right')
         ax.text(bar_x + bar_width, y + 0.1, f"Manjka: {goal - val:.1f}", fontsize=10, color='red', ha='right')
 
     current_y = y_start
-    if "Mesečni cilj" in active_bars:
-        draw_bar(current_y, total_run_so_far, MONTHLY_GOAL, C_RUN, "MESEČNI CILJ"); current_y -= 1.2
-    if "Strava Izziv" in active_bars:
-        draw_bar(current_y, total_run_so_far, STRAVA_GOAL, C_STRAVA, "STRAVA IZZIV"); current_y -= 1.2
-    if "Letni cilj" in active_bars:
-        draw_bar(current_y, total_run_year, YEAR_GOAL, C_QUOTA, "LETNI CILJ"); current_y -= 1.2
-    if "Letni Višinci" in active_bars:
-        draw_bar(current_y, total_elev_so_far, ELEV_GOAL, C_ELEV, "VIŠINSKI METRI", "m"); current_y -= 1.2
+    if "cat1" in active_bars: draw_bar(current_y, total_run_so_far, C1_G * 31, C1_C, C1_N); current_y -= 1.2 # Tu je C1 prikazan kot mesečna vsota
+    if "cat2" in active_bars: draw_bar(current_y, total_run_year, C2_G, C2_C, C2_N); current_y -= 1.2
+    if "cat3" in active_bars: draw_bar(current_y, total_run_so_far, C3_G, C3_C, C3_N); current_y -= 1.2
+    if "cat4" in active_bars: draw_bar(current_y, total_elev_so_far, C4_G, C4_C, C4_N, "m"); current_y -= 1.2
 
     st.pyplot(fig)
