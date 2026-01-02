@@ -149,4 +149,107 @@ with tab1:
         ax.add_patch(patches.Circle((5.0, leg_y), 0.15, color=C_STRAVA)); ax.text(5.3, leg_y, 'Strava', va='center', fontsize=12)
         
     if show_elev_daily: # Legenda za višince, če so vklopljeni na koledarju
-        ax.add_patch(patches.Circle((7
+        ax.add_patch(patches.Circle((7.0, leg_y), 0.15, color=C_ELEV)); ax.text(7.3, leg_y, 'Višinci', va='center', fontsize=12)
+
+    ax.plot([0, 8], [6.4, 6.4], color='#bdc3c7', lw=2)
+
+    # Koledar
+    cal = calendar.monthcalendar(2026, 1)
+    days_of_week = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned', 'Vsota']
+    for i, dname in enumerate(days_of_week):
+        ax.text(i + 0.5, 6.1, dname, ha='center', va='center', fontsize=14, fontweight='bold', color='#34495e')
+
+    for week_idx, week in enumerate(cal):
+        w_sum = 0
+        for day_idx, day in enumerate(week):
+            x = day_idx; y = 5 - week_idx
+            rect = patches.Rectangle((x, y), 1, 1, fill=True, facecolor='white', edgecolor='#ecf0f1', linewidth=2)
+            ax.add_patch(rect)
+            
+            if day == 0: continue
+            
+            ax.text(x + 0.05, y + 0.85, str(day), fontsize=14, fontweight='bold', color='#7f8c8d')
+            
+            pos_run = (x + 0.25, y + 0.72); pos_quota = (x + 0.25, y + 0.56)
+            pos_strava = (x + 0.25, y + 0.40); pos_elev = (x + 0.25, y + 0.24)
+            text_off_x = 0.15
+            
+            if day in data:
+                d = data[day]; run_km = d['run']; elev = d['elev']; is_today = d['is_today']
+                w_sum += run_km
+                
+                run_ok = run_km >= 1.6
+                quota_ok = run_km >= DAILY_QUOTA
+                strava_ok = run_km >= STRAVA_DAILY
+                
+                # 1. RUN (Modra pika) - Odvisno od nastavitve
+                if show_run_dot:
+                    if run_ok: 
+                        ax.add_patch(patches.Circle(pos_run, 0.07, color=C_RUN))
+                        ax.text(pos_run[0], pos_run[1], '✓', ha='center', va='center', color='white', fontweight='bold', fontsize=9)
+                    else: 
+                        col = C_PENDING if is_today else C_BG
+                        ax.add_patch(patches.Circle(pos_run, 0.07, fill=False, edgecolor=col, lw=2))
+                
+                # Tekst kilometrov (Vedno prikažemo, če je vnos)
+                ax.text(pos_run[0]+text_off_x, pos_run[1], f"{run_km:.1f} km", va='center', fontsize=9, fontweight='bold', color='#2c3e50')
+                
+                # 2. QUOTA (Rumena) - Odvisno od stolpca "Letni cilj"
+                if "Letni cilj" in active_bars:
+                    if quota_ok: 
+                        ax.add_patch(patches.Circle(pos_quota, 0.07, color=C_QUOTA))
+                        ax.text(pos_quota[0], pos_quota[1], '✓', ha='center', va='center', color='white', fontweight='bold', fontsize=9)
+                    else:
+                        col = C_PENDING if is_today else 'salmon'
+                        ax.add_patch(patches.Circle(pos_quota, 0.07, fill=False, edgecolor=col, lw=2))
+                        ax.text(pos_quota[0], pos_quota[1], '!', ha='center', va='center', color=col, fontweight='bold', fontsize=9)
+                    ax.text(pos_quota[0]+text_off_x, pos_quota[1], f"{run_km:.1f}/{DAILY_QUOTA:.1f}", va='center', fontsize=8, color='black')
+
+                # 3. STRAVA (Oranžna) - Odvisno od stolpca "Strava Izziv"
+                if "Strava Izziv" in active_bars:
+                    if strava_ok: 
+                        ax.add_patch(patches.Circle(pos_strava, 0.07, color=C_STRAVA))
+                    else:
+                        col = C_PENDING if is_today else 'salmon'
+                        ax.add_patch(patches.Circle(pos_strava, 0.07, fill=False, edgecolor=col, lw=2))
+                    ax.text(pos_strava[0]+text_off_x, pos_strava[1], f"{run_km:.1f}/{STRAVA_DAILY:.1f}", va='center', fontsize=8, color='black')
+                
+                # 4. ELEV (Vijolična) - Odvisno od nastavitve "Dnevni višinci"
+                if show_elev_daily and elev > 0:
+                     ax.add_patch(patches.Circle(pos_elev, 0.07, color=C_ELEV))
+                     ax.text(pos_elev[0]+text_off_x, pos_elev[1], f"+{int(elev)} m", va='center', fontsize=9, color=C_ELEV)
+        
+        if w_sum > 0:
+            ax.text(7.5, 5 - week_idx + 0.5, f"{w_sum:.1f}", ha='center', va='center', fontsize=12, fontweight='bold')
+
+    # SPODNJI STOLPCI
+    ax.plot([0, 8], [-0.2, -0.2], color='#bdc3c7', lw=2) 
+    ax.text(4, -0.8, 'NAPREDEK DO CILJA', fontsize=18, fontweight='bold', ha='center', color='#2c3e50')
+    
+    bar_x = 0.5; bar_width = 7; bar_height = 0.6; y_start = -1.8
+    
+    total_run_so_far = df_jan['run'].sum()
+    total_elev_so_far = df_jan['elev'].sum()
+    total_run_year = df[df['dt'].dt.year == 2026]['run'].sum()
+    
+    def draw_bar(y, val, goal, color, label, unit='km'):
+        ax.add_patch(patches.Rectangle((bar_x, y), bar_width, bar_height, facecolor=C_BG, edgecolor='none'))
+        pct = val / goal if goal > 0 else 0
+        pct = 1 if pct > 1 else pct
+        ax.add_patch(patches.Rectangle((bar_x, y), bar_width * pct, bar_height, facecolor=color, edgecolor='none'))
+        ax.text(bar_x, y + 0.7, f"{label}", fontsize=12, fontweight='bold', color='#555')
+        ax.text(bar_x + bar_width, y + 0.7, f"{val:.1f} / {goal:.0f} {unit}", fontsize=12, fontweight='bold', color='black', ha='right')
+        ax.text(bar_x + bar_width, y + 0.1, f"Manjka: {goal - val:.1f}", fontsize=10, color='red', ha='right')
+
+    current_y = y_start
+    # Rišemo samo tiste, ki so izbrani v multiselectu
+    if "Mesečni cilj" in active_bars:
+        draw_bar(current_y, total_run_so_far, MONTHLY_GOAL, C_RUN, "MESEČNI CILJ"); current_y -= 1.2
+    if "Strava Izziv" in active_bars:
+        draw_bar(current_y, total_run_so_far, STRAVA_GOAL, C_STRAVA, "STRAVA IZZIV"); current_y -= 1.2
+    if "Letni cilj" in active_bars:
+        draw_bar(current_y, total_run_year, YEAR_GOAL, C_QUOTA, "LETNI CILJ"); current_y -= 1.2
+    if "Letni Višinci" in active_bars:
+        draw_bar(current_y, total_elev_so_far, ELEV_GOAL, C_ELEV, "VIŠINSKI METRI", "m"); current_y -= 1.2
+
+    st.pyplot(fig)
