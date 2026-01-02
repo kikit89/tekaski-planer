@@ -41,7 +41,6 @@ def init_settings():
             {'id': 'g2', 'name': 'Strava Izziv', 'color': '#FC4C02', 'goal': 300.0, 'type': 'Mesečni', 'unit': 'km', 'active': True},
             {'id': 'g3', 'name': 'Hribi', 'color': '#8e44ad', 'goal': 80000.0, 'type': 'Letni', 'unit': 'm', 'active': True},
         ]
-    
     if 'show_sub_month' not in st.session_state: st.session_state['show_sub_month'] = True
     if 'show_sub_week' not in st.session_state: st.session_state['show_sub_week'] = True
 
@@ -59,10 +58,8 @@ with tab3:
     
     st.subheader("1. Podrobnosti spodaj")
     c1, c2 = st.columns(2)
-    with c1: 
-        st.session_state['show_sub_month'] = st.checkbox("Mesečna analiza", value=st.session_state['show_sub_month'])
-    with c2: 
-        st.session_state['show_sub_week'] = st.checkbox("Tedenska analiza", value=st.session_state['show_sub_week'])
+    with c1: st.session_state['show_sub_month'] = st.checkbox("Mesečna analiza", value=st.session_state['show_sub_month'])
+    with c2: st.session_state['show_sub_week'] = st.checkbox("Tedenska analiza", value=st.session_state['show_sub_week'])
     st.write("---")
 
     st.subheader("2. Moji Cilji")
@@ -79,7 +76,6 @@ with tab3:
             with c5: g['unit'] = st.selectbox("Enota", ["km", "m"], index=0 if g.get('unit','km')=="km" else 1, key=f"u_{g['id']}")
             
             g['active'] = st.checkbox("Prikaži na koledarju", value=g['active'], key=f"a_{g['id']}")
-            
             if st.button(f"🗑️ Izbriši", key=f"del_{g['id']}"):
                 goals_to_remove.append(i)
 
@@ -90,7 +86,7 @@ with tab3:
 
     st.subheader("➕ Dodaj nov cilj")
     with st.form("new_goal"):
-        n_name = st.text_input("Ime (npr. Dnevni tek)")
+        n_name = st.text_input("Ime")
         c1, c2 = st.columns(2)
         with c1: n_goal = st.number_input("Vrednost", value=100.0)
         with c2: n_unit = st.selectbox("Enota", ["km", "m"])
@@ -153,12 +149,11 @@ with tab1:
     days_in_month = calendar.monthrange(current_year, current_month)[1]
     
     current_week_num = today.isocalendar()[1]
+    current_weekday_iso = today.isocalendar()[2] # 1=Pon (TO JE MANJKALO PREJ!)
     
     active_goals = [g for g in st.session_state['goals_list'] if g['active']]
     
-    # -----------------------------------------------------------
-    # PRED-IZRAČUN (Banking logika)
-    # -----------------------------------------------------------
+    # --- PRED-IZRAČUN (Banking logika) ---
     goals_calc = []
     for g in st.session_state['goals_list']:
         g_val = g['goal']
@@ -187,22 +182,17 @@ with tab1:
             'accum_total': accum_total
         })
 
-    # -----------------------------------------------------------
-    # RISANJE KOLEDARJA
-    # -----------------------------------------------------------
+    # --- RISANJE KOLEDARJA ---
     C_BG = '#ecf0f1'; C_PENDING = '#e67e22'; C_TEXT = '#2c3e50'; C_GOOD = '#27ae60'; C_BAD = '#c0392b'
     
-    # Izračun višine: ZELO POVEČANO da ni stisnjeno
+    # Višina grafa
     bars_count = len(st.session_state['goals_list'])
     extra_rows = 0
     if st.session_state['show_sub_month']: extra_rows += len([g for g in st.session_state['goals_list'] if g['type'] == 'Letni'])
     if st.session_state['show_sub_week']: extra_rows += bars_count
 
-    # POVEČANA VIŠINA FIGURI (Osnova 16 namesto 11)
-    fig_height = 16 + ((bars_count + extra_rows) * 1.5)
+    fig_height = 14 + ((bars_count + extra_rows) * 1.5)
     fig, ax = plt.subplots(figsize=(12, fig_height))
-    
-    # Y limit
     ax.set_xlim(0, 8); ax.set_ylim(-2 - (bars_count + extra_rows) * 1.5, 7.5); ax.axis('off')
 
     SLO_MONTHS = {1:"JANUAR", 2:"FEBRUAR", 3:"MAREC", 4:"APRIL", 5:"MAJ", 6:"JUNIJ", 7:"JULIJ", 8:"AVGUST", 9:"SEPTEMBER", 10:"OKTOBER", 11:"NOVEMBER", 12:"DECEMBER"}
@@ -229,62 +219,54 @@ with tab1:
     current_day_real = today.day
 
     for week_idx, week in enumerate(cal):
-        w_sum_dist = 0
-        w_sum_elev = 0
+        w_sum_dist = 0; w_sum_elev = 0
         for day_idx, day in enumerate(week):
             x = day_idx; y = 5 - week_idx
-            # Povečan kvadrat
             rect = patches.Rectangle((x, y), 1, 1, fill=True, facecolor='white', edgecolor='#ecf0f1', linewidth=2)
             ax.add_patch(rect)
             if day == 0: continue
             
             ax.text(x + 0.05, y + 0.85, str(day), fontsize=14, fontweight='bold', color='#7f8c8d')
             
-            # --- ZAPIS V CILICO ---
+            # --- VERTIKALNI KROGCI ZNOTRAJ DNEVA ---
             if active_goals_count > 0:
-                # Več prostora med vrsticami
-                spacing = 0.8 / max(active_goals_count, 1)
+                spacing = 0.75 / max(active_goals_count, 1)
                 
                 daily_vals = data.get(day, {'run':0, 'elev':0, 'is_today':False})
                 val_km = daily_vals['run']; val_m = daily_vals['elev']; is_today = daily_vals['is_today']
-                w_sum_dist += val_km
-                w_sum_elev += val_m
+                w_sum_dist += val_km; w_sum_elev += val_m
                 
                 for i, g in enumerate(active_goals):
-                    # Poišči ustrezen izračun
                     calc = next((c for c in goals_calc if c['meta']['id'] == g['id']), None)
                     if not calc: continue
 
                     dot_y = (y + 0.70) - (i * spacing)
                     current_val = val_m if g['unit']=='m' else val_km
                     
-                    # === VIŠINCI (Samo cifra) ===
+                    # VIŠINCI (Samo številka)
                     if g['unit'] == 'm':
                          if current_val > 0:
                              ax.text(x+0.5, dot_y, f"{int(current_val)} m", ha='center', va='center', fontsize=9, color=g['color'], fontweight='bold')
                          continue 
 
-                    # === TEK (Krogci + Act/Plan) ===
-                    # 1. PRETEKLOST (in DANES)
+                    # TEK (Krogci + Act/Plan)
+                    # 1. PRETEKLOST
                     if day <= current_day_real:
                         daily_avg = calc['daily_avg']
                         has_data = current_val > 0
-                        
-                        # Barva teksta: Zelena (Doseženo) / Rdeča (Zgrešeno)
                         txt_col = C_GOOD if current_val >= daily_avg else C_BAD
                         
-                        # Krogec
-                        ok = current_val >= daily_avg
-                        dot_col = g['color'] if ok else (C_PENDING if is_today else 'salmon')
-                        
                         if has_data or is_today:
+                            ok = current_val >= daily_avg
+                            col = g['color'] if ok else (C_PENDING if is_today else 'salmon')
+                            
                             if ok:
                                 ax.add_patch(patches.Circle((x+0.15, dot_y), 0.06, color=g['color']))
+                                if active_goals_count <= 4: 
+                                    ax.text(x+0.15, dot_y, '✓', ha='center', va='center', color='white', fontsize=7, fontweight='bold')
                             else:
-                                ax.add_patch(patches.Circle((x+0.15, dot_y), 0.06, fill=False, edgecolor=dot_col, lw=2))
+                                ax.add_patch(patches.Circle((x+0.15, dot_y), 0.06, fill=False, edgecolor=col, lw=2))
                             
-                            # TEKST: "7.2 / 6.8"
-                            # Če ni podatka in ni danes, ne pišemo nič. Če je danes, pišemo.
                             label_txt = f"{current_val:.1f} / {daily_avg:.1f}"
                             ax.text(x+0.25, dot_y, label_txt, va='center', fontsize=8, color=txt_col, fontweight='bold')
 
@@ -292,29 +274,22 @@ with tab1:
                     elif day == current_day_real + 1:
                         target_tomorrow = calc['goal_tomorrow']
                         standard_avg = calc['daily_avg']
-                        
-                        # Rdeča (moraš več) / Zelena (lahko manj)
                         txt_col = C_GOOD if target_tomorrow <= standard_avg else C_BAD
                         
-                        # Oznaka "Cilj: 8.5"
                         ax.text(x+0.5, dot_y, f"Cilj: {target_tomorrow:.1f}", ha='center', va='center', fontsize=8, fontweight='bold', color=txt_col)
 
                     # 3. PRIHODNOST
                     else:
-                        # Samo siva pika
                         ax.add_patch(patches.Circle((x+0.15, dot_y), 0.04, color='#ecf0f1'))
 
-
-        # TEDENSKA VSOTA
+        # TEDENSKE VSOTE
         if w_sum_dist > 0:
             ax.text(7.5, 5 - week_idx + 0.6, f"{w_sum_dist:.1f} km", ha='center', va='center', fontsize=10, fontweight='bold', color='#555')
-        
-        # TEDENSKI VIŠINCI (DODANO)
         if w_sum_elev > 0:
             ax.text(7.5, 5 - week_idx + 0.3, f"{int(w_sum_elev)} m", ha='center', va='center', fontsize=10, fontweight='bold', color='#8e44ad')
 
     # -----------------------------------------------------------
-    # STOLPCI SPODAJ
+    # STOLPCI SPODAJ (Semafor, Poravnani Levo)
     # -----------------------------------------------------------
     ax.plot([0, 8], [-0.2, -0.2], color='#bdc3c7', lw=2) 
     ax.text(4, -0.8, 'NAPREDEK', fontsize=18, fontweight='bold', ha='center', color='#2c3e50')
@@ -322,14 +297,12 @@ with tab1:
     bar_x = 0.5; bar_width = 7; bar_height = 0.6; y_cursor = -2.2
     
     def draw_bar_status(y, val, goal, color, label, target_val=None, unit='km'):
-        # Ozadje
+        # Brez zamikov
         ax.add_patch(patches.Rectangle((bar_x, y), bar_width, bar_height, facecolor=C_BG, edgecolor='none'))
-        # Polnilo
         pct = val / goal if goal > 0 else 0
         if pct > 1: pct = 1
         ax.add_patch(patches.Rectangle((bar_x, y), bar_width * pct, bar_height, facecolor=color, edgecolor='none'))
         
-        # SEMAFOR (+/-)
         status_txt = ""
         status_col = 'black'
         if target_val is not None:
@@ -338,27 +311,21 @@ with tab1:
             status_txt = f"{sign}{diff:.1f} {unit}"
             status_col = C_GOOD if diff >= 0 else C_BAD 
             
-            # Marker
             tpct = target_val / goal if goal > 0 else 0
             if tpct > 1: tpct = 1
             tpos = bar_x + (bar_width * tpct)
             ax.plot([tpos, tpos], [y, y+bar_height], color='black', alpha=0.5, lw=1.5, linestyle=':')
 
-        # Ime
         ax.text(bar_x, y + 0.7, label, fontsize=11, fontweight='bold', color='#555')
-        
-        # Desno: Vrednost
         right_txt = f"{val:.1f}/{goal:.0f} {unit}"
         ax.text(bar_x + bar_width, y + 0.7, right_txt, fontsize=11, fontweight='bold', color='black', ha='right')
         
-        # Semafor (pod vrednostjo)
         if status_txt:
             ax.text(bar_x + bar_width, y + 0.1, f"Stanje: {status_txt}", fontsize=10, fontweight='bold', color=status_col, ha='right')
 
     for gd in goals_calc:
         meta = gd['meta']
         accum = gd['accum_total'] 
-        
         days_passed = day_of_year if meta['type'] == 'Letni' else day_of_month
         main_target = gd['daily_avg'] * days_passed
         
@@ -366,7 +333,7 @@ with tab1:
         draw_bar_status(y_cursor, accum, meta['goal'], meta['color'], f"{meta['name']}", target_val=main_target, unit=meta['unit'])
         y_cursor -= 1.4
         
-        # Mesec (če je Letni)
+        # Mesec
         if st.session_state['show_sub_month'] and meta['type'] == 'Letni':
             month_goal = gd['daily_avg'] * days_in_month
             month_accum = df_month_view['elev' if meta['unit']=='m' else 'run'].sum()
